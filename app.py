@@ -1,370 +1,462 @@
-from flask import Flask, render_template, request, redirect, url_for
-from flask_socketio import SocketIO, join_room, emit
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session
 import random
 import string
-import time
-from threading import Thread, Lock
+from datetime import datetime, timedelta
+import uuid
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'rahasia123'
-app.config['DEBUG'] = True
+app.config['SECRET_KEY'] = 'rahasia123-super-secret-key-2024'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
 
-# SocketIO dengan konfigurasi khusus untuk development
-socketio = SocketIO(
-    app, 
-    cors_allowed_origins="*",
-    async_mode='threading',  # Paksa pakai threading
-    logger=True,  # Aktifkan logging
-    engineio_logger=True  # Aktifkan logging Engine.IO
-)
-
-# Database
 rooms = {}
-words = ["Pizza", "Kucing", "Mobil", "Laptop", "Buku", "Gitar", "Sepeda", "Kopi"]
-room_locks = {}  # Untuk thread safety
+words = [
+    "Pizza", "Kucing", "Mobil", "Laptop", "Buku", "Gitar", "Sepeda", "Kopi",
+    "Matahari", "Bulan", "Bintang", "Hujan", "Angin", "Gunung", "Pantai", "Laut",
+    "Komputer", "HP", "Televisi", "Radio", "Sepatu", "Baju", "Topi", "Kacamata","Jepang","Bali","Kipas"
+]
 
-# ===================== TIMER FUNCTIONS =====================
-def clue_timer(code):
-    """Timer untuk memberikan clue (10 detik)"""
-    print(f"🎯 CLUE TIMER STARTED for room {code}")
-    
-    # Cek room masih ada
-    if code not in rooms:
-        print(f"❌ Room {code} not found")
-        return
-    
-    # Cek timer aktif
-    if code not in room_locks:
-        room_locks[code] = Lock()
-    
-    with room_locks[code]:
-        room = rooms[code]
-        if room.get("timer_active", False):
-            print(f"⏰ Timer already active for room {code}")
-            return
-        room["timer_active"] = True
-    
-    try:
-        # Dapatkan nama pemain pertama untuk clue giver
-        players_list = list(room["players"].values())
-        clue_giver = players_list[0] if players_list else "Someone"
-        room["current_clue_giver"] = clue_giver
-        
-        print(f"📢 Clue giver: {clue_giver}")
-        
-        # Kirim timer setiap detik
-        for i in range(20, 0, -1):
-            if code not in rooms:
-                print(f"❌ Room {code} deleted during timer")
-                return
-            
-            print(f"⏱️ Sending clue timer: {i} to room {code}")
-            
-            # Emit ke semua client di room
-            socketio.emit("clue_timer", {
-                "time": i,
-                "current_player": clue_giver
-            }, room=code)
-            
-            # Tunggu 1 detik (tanpa blocking event loop)
-            socketio.sleep(1)
-        
-        # Setelah clue timer selesai
-        if code in rooms:
-            print(f"✅ Clue timer finished for room {code}, starting voting")
-            socketio.emit("start_voting", {}, room=code)
-            
-            # Mulai voting timer
-            socketio.start_background_task(voting_timer, code)
-            
-    except Exception as e:
-        print(f"❌ Error in clue timer: {e}")
-        import traceback
-        traceback.print_exc()
-    finally:
-        if code in rooms:
-            with room_locks[code]:
-                rooms[code]["timer_active"] = False
-            print(f"🔄 Timer reset for room {code}")
+# ================= UTILITY =================
+def generate_code():
+    """Generate kode room unik 6 karakter"""
+    code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    while code in rooms:
+        code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    return code
 
-def voting_timer(code):
-    """Timer untuk voting (15 detik)"""
-    print(f"🎯 VOTING TIMER STARTED for room {code}")
+def calculate_vote_result(room):
+    """Hitung hasil voting dengan sistem yang lebih baik"""
+    votes = room.get("votes", {})
     
-    if code not in rooms:
-        print(f"❌ Room {code} not found")
-        return
-    
-    try:
-        for i in range(60, 0, -1):
-            if code not in rooms:
-                return
-            
-            print(f"⏱️ Sending voting timer: {i} to room {code}")
-            socketio.emit("voting_timer", {"time": i}, room=code)
-            socketio.sleep(1)
-        
-        # Voting selesai
-        if code in rooms:
-            print(f"✅ Voting timer finished for room {code}")
-            room = rooms[code]
-            
-            # Hitung hasil
-            votes = room.get("votes", {})
-            print(f"📊 Final votes: {votes}")
-            
-            # Tentukan hasil
-            result = calculate_vote_result(room, votes)
-            print(f"🏆 Result: {result}")
-            
-            # Kirim hasil
-            socketio.emit("voting_end", result, room=code)
-            
-            # Reset untuk game berikutnya
-            room["votes"] = {}
-            room["game_started"] = False
-            
-    except Exception as e:
-        print(f"❌ Error in voting timer: {e}")
-        import traceback
-        traceback.print_exc()
-
-def calculate_vote_result(room, votes):
-    """Hitung hasil voting"""
     if not votes:
         return {
-            "eliminated": None,
-            "is_impostor": False,
-            "votes": {},
-            "impostor": room.get("impostor_name", "Unknown")
+            "eliminated": "None", 
+            "is_impostor": False, 
+            "votes": {}, 
+            "impostor": room.get("impostor_name", "Unknown"),
+            "message": "Tidak ada voting yang dilakukan"
         }
+
+    # Hitung suara per target (berdasarkan target_id)
+    vote_count = {}
+    for voter_id, target_id in votes.items():
+        # Dapatkan nama target
+        if target_id in room["players"]:
+            target_name = room["players"][target_id]["name"]
+            vote_count[target_name] = vote_count.get(target_name, 0) + 1
     
-    max_votes = max(votes.values())
-    losers = [p for p, v in votes.items() if v == max_votes]
-    
+    if not vote_count:
+        return {
+            "eliminated": "None", 
+            "is_impostor": False, 
+            "votes": {}, 
+            "impostor": room.get("impostor_name", "Unknown"),
+            "message": "Tidak ada suara valid"
+        }
+
+    max_votes = max(vote_count.values())
+    losers = [p for p, v in vote_count.items() if v == max_votes]
+
     if len(losers) == 1:
         eliminated = losers[0]
         is_impostor = (eliminated == room.get("impostor_name"))
         
+        if is_impostor:
+            message = f"🎉 {eliminated} adalah IMPOSTOR! Crewmate menang!"
+        else:
+            message = f"😢 {eliminated} adalah CREWMATE. Impostor masih hidup!"
+            
         return {
-            "eliminated": eliminated,
-            "is_impostor": is_impostor,
-            "votes": votes,
-            "impostor": room["impostor_name"] if not is_impostor else eliminated
+            "eliminated": eliminated, 
+            "is_impostor": is_impostor, 
+            "votes": vote_count, 
+            "impostor": room["impostor_name"],
+            "message": message
         }
     else:
         return {
-            "eliminated": None,
-            "is_impostor": False,
-            "votes": votes,
-            "impostor": room.get("impostor_name", "Unknown")
+            "eliminated": "None", 
+            "is_impostor": False, 
+            "votes": vote_count, 
+            "impostor": room.get("impostor_name", "Unknown"),
+            "message": "🤝 Hasil seri! Tidak ada yang tereliminasi."
         }
 
-# ===================== ROUTES =====================
+def cleanup_old_rooms():
+    """Bersihkan room yang sudah tidak aktif"""
+    current_time = datetime.now()
+    to_delete = []
+    for code, room in rooms.items():
+        if 'last_activity' in room:
+            if current_time - room['last_activity'] > timedelta(hours=2):
+                to_delete.append(code)
+    
+    for code in to_delete:
+        del rooms[code]
+
+# ================= ROUTES =================
 @app.route("/", methods=["GET", "POST"])
 def index():
+    cleanup_old_rooms()  # Bersihkan room lama
+    
     if request.method == "POST":
-        name = request.form.get("name")
+        name = request.form.get("name", "").strip()
         if not name:
-            return "Nama harus diisi!", 400
+            return render_template("index.html", error="Nama harus diisi!"), 400
+        if len(name) > 20:
+            return render_template("index.html", error="Nama terlalu panjang (max 20 karakter)"), 400
         
+        # Buat room baru
         code = generate_code()
+        player_id = str(uuid.uuid4())
+        
         rooms[code] = {
+            "host_id": player_id,
             "host_name": name,
-            "host_sid": None,
-            "players": {},
+            "players": {player_id: {"name": name, "joined_at": datetime.now()}},
             "word": random.choice(words),
-            "impostor_sid": None,
+            "impostor_id": None,
             "impostor_name": None,
             "votes": {},
-            "timer_active": False,
-            "current_clue_giver": name,
-            "game_started": False
+            "voters": set(),
+            "game_started": False,
+            "clue_time": 0,
+            "voting_time": 0,
+            "current_clue_giver_id": player_id,
+            "current_clue_giver_name": name,
+            "created_at": datetime.now(),
+            "last_activity": datetime.now(),
+            "messages": []
         }
-        return redirect(url_for("game", code=code, name=name))
+        
+        # Set session
+        session['player_id'] = player_id
+        session['room_code'] = code
+        session.permanent = True
+        
+        return redirect(url_for("game", code=code))
     
     return render_template("index.html")
 
+@app.route("/join", methods=["GET", "POST"])
+def join():
+    if request.method == "POST":
+        code = request.form.get("code", "").strip().upper()
+        name = request.form.get("name", "").strip()
+        
+        if not code or not name:
+            return render_template("join.html", error="Kode room dan nama harus diisi!")
+        if code not in rooms:
+            return render_template("join.html", error="Room tidak ditemukan!")
+        
+        room = rooms[code]
+        if room["game_started"]:
+            return render_template("join.html", error="Game sudah dimulai, tidak bisa join!")
+        
+        if len(room["players"]) >= 10:
+            return render_template("join.html", error="Room sudah penuh (max 10 pemain)!")
+        
+        if len(name) > 20:
+            return render_template("join.html", error="Nama terlalu panjang (max 20 karakter)")
+        
+        # Cek apakah nama sudah dipakai
+        for player in room["players"].values():
+            if player["name"].lower() == name.lower():
+                return render_template("join.html", error="Nama sudah digunakan dalam room ini!")
+        
+        # Join room
+        player_id = str(uuid.uuid4())
+        room["players"][player_id] = {"name": name, "joined_at": datetime.now()}
+        room["last_activity"] = datetime.now()
+        
+        # Set session
+        session['player_id'] = player_id
+        session['room_code'] = code
+        session.permanent = True
+        
+        return redirect(url_for("game", code=code))
+    
+    return render_template("join.html")
+
 @app.route("/game/<code>")
 def game(code):
+    # Cek room
     if code not in rooms:
-        return "Room tidak ditemukan!", 404
-    
-    name = request.args.get("name")
-    if not name:
-        return redirect(url_for("index"))
+        return render_template("error.html", message="Room tidak ditemukan!"), 404
     
     room = rooms[code]
-    players = list(room["players"].values())
-    print(f"🏠 GAME PAGE - Code: {code}")
-    print(f"   Name: {name}")
-    print(f"   Host: {room['host_name']}")
-    print(f"   Players from room: {players}")
-    print(f"   Player count: {len(players)}")
+    player_id = session.get('player_id')
     
-    return render_template("game.html", 
-                         code=code, 
-                         name=name, 
-                         players=players,
-                         host_name=room["host_name"],
-                         is_host=(name == room["host_name"]),
-                        player_count=len(players))
+    # Cek player
+    if not player_id or player_id not in room["players"]:
+        return redirect(url_for("join"))
+    
+    # Update last activity
+    room["last_activity"] = datetime.now()
+    
+    # Siapkan data player
+    player_name = room["players"][player_id]["name"]
+    players_list = [p["name"] for p in room["players"].values()]
+    
+    return render_template(
+        "game.html",
+        code=code,
+        name=player_name,
+        player_id=player_id,
+        players=players_list,
+        host_name=room["host_name"],
+        is_host=(player_id == room["host_id"])
+    )
+
+@app.route("/api/status/<code>")
+def api_status(code):
+    if code not in rooms:
+        return jsonify({"error": "Room tidak ditemukan"}), 404
+    
+    room = rooms[code]
+    player_id = session.get('player_id')
+    
+    # Update last activity
+    room["last_activity"] = datetime.now()
+    
+    # Siapkan data pemain
+    players_list = [{
+        "id": pid,
+        "name": data["name"],
+        "is_you": (pid == player_id)
+    } for pid, data in room["players"].items()]
+    
+    # Timer logic - HAPUS auto voting, hanya countdown
+    response_data = {
+        "players": players_list,
+        "game_started": room["game_started"],
+        "clue_time": room["clue_time"],
+        "voting_time": room["voting_time"],
+        "current_clue_giver": room.get("current_clue_giver_name"),
+        "word_hint": None,
+        "votes_cast": len(room.get("voters", set())),
+        "total_players": len(room["players"]),
+        "messages": room.get("messages", [])[-10:],
+        "voting_active": room["voting_time"] > 0  # Tambah flag voting aktif
+    }
+    
+    # Role info (hanya untuk player sendiri)
+    if room["game_started"]:
+        if player_id == room.get("impostor_id"):
+            response_data["your_role"] = "IMPOSTOR"
+            response_data["word_hint"] = "Kamu adalah IMPOSTOR!"
+        else:
+            response_data["your_role"] = "CREWMATE"
+            response_data["word_hint"] = f"Kata rahasia: {room['word']}"
+    
+    # Countdown clue time (jika ada)
+    if room["game_started"] and room["clue_time"] > 0:
+        room["clue_time"] -= 1
+    
+    # Countdown voting time (jika sedang voting)
+    if room["voting_time"] > 0:
+        room["voting_time"] -= 1
+        if room["voting_time"] == 0:
+            # Voting selesai, hitung hasil
+            result = calculate_vote_result(room)
+            response_data["voting_end"] = result
+            room["game_started"] = False
+            room["votes"] = {}
+            room["voters"] = set()
+            room["clue_time"] = 0
+            room["voting_time"] = 0
+    
+    return jsonify(response_data)
+
+@app.route("/api/start/<code>", methods=["POST"])
+def api_start_game(code):
+    if code not in rooms:
+        return jsonify({"error": "Room tidak ditemukan"}), 404
+    
+    room = rooms[code]
+    player_id = session.get('player_id')
+    
+    # Cek host
+    if player_id != room["host_id"]:
+        return jsonify({"error": "Hanya host yang bisa memulai game"}), 403
+    
+    if room["game_started"]:
+        return jsonify({"error": "Game sudah dimulai"}), 400
+    
+    if len(room["players"]) < 2:
+        return jsonify({"error": "Minimal 2 pemain"}), 400
+    
+    # Pilih impostor
+    impostor_id = random.choice(list(room["players"].keys()))
+    impostor_name = room["players"][impostor_id]["name"]
+    
+    room["game_started"] = True
+    room["impostor_id"] = impostor_id
+    room["impostor_name"] = impostor_name
+    room["clue_time"] = 20
+    room["voting_time"] = 0
+    
+    # Pilih pemberi clue pertama
+    first_clue_giver_id = list(room["players"].keys())[0]
+    room["current_clue_giver_id"] = first_clue_giver_id
+    room["current_clue_giver_name"] = room["players"][first_clue_giver_id]["name"]
+    
+    # Reset votes
+    room["votes"] = {}
+    room["voters"] = set()
+    
+    return jsonify({
+        "success": True,
+        "message": "Game dimulai!"
+    })
+
+@app.route("/api/start-voting/<code>", methods=["POST"])
+def api_start_voting(code):
+    if code not in rooms:
+        return jsonify({"error": "Room tidak ditemukan"}), 404
+    
+    room = rooms[code]
+    player_id = session.get('player_id')
+    
+    # Cek host
+    if player_id != room["host_id"]:
+        return jsonify({"error": "Hanya host yang bisa memulai voting"}), 403
+    
+    if not room["game_started"]:
+        return jsonify({"error": "Game belum dimulai"}), 400
+    
+    if room["voting_time"] > 0:
+        return jsonify({"error": "Voting sudah berlangsung"}), 400
+    
+    # Mulai voting
+    room["voting_time"] = 30  # 60 detik voting
+    room["clue_time"] = 0  # Hentikan fase clue
+    room["votes"] = {}
+    room["voters"] = set()
+    
+    return jsonify({
+        "success": True,
+        "message": "Voting dimulai!",
+        "voting_time": room["voting_time"]
+    })
+
+@app.route("/api/chat/<code>", methods=["POST"])
+def api_chat(code):
+    if code not in rooms:
+        return jsonify({"error": "Room tidak ditemukan"}), 404
+    
+    room = rooms[code]
+    data = request.json
+    message = data.get("message", "").strip()
+    player_id = session.get('player_id')
+    
+    if not player_id or player_id not in room["players"]:
+        return jsonify({"error": "Anda tidak terdaftar"}), 400
+    
+    if not message or len(message) > 200:
+        return jsonify({"error": "Pesan tidak valid"}), 400
+    
+    player_name = room["players"][player_id]["name"]
+    
+    # Tambah pesan
+    if "messages" not in room:
+        room["messages"] = []
+    
+    room["messages"].append({
+        "name": player_name,
+        "message": message,
+        "time": datetime.now().strftime("%H:%M")
+    })
+    
+    # Batasi jumlah pesan
+    if len(room["messages"]) > 50:
+        room["messages"] = room["messages"][-50:]
+    
+    return jsonify({"success": True})
 
 @app.route("/result/<code>")
 def result(code):
     if code not in rooms:
-        return "Room tidak ditemukan!", 404
+        return render_template("error.html", message="Room tidak ditemukan"), 404
     
     eliminated = request.args.get("eliminated", "None")
     is_impostor = request.args.get("is_impostor", "false") == "true"
     impostor = request.args.get("impostor", "Unknown")
-    
-    return render_template("result.html",
-                         code=code,
-                         eliminated=eliminated,
-                         is_impostor=is_impostor,
-                         impostor=impostor)
-
-# ===================== UTILITY =====================
-def generate_code():
-    code = ''.join(random.choices(string.ascii_uppercase, k=5))
-    while code in rooms:
-        code = ''.join(random.choices(string.ascii_uppercase, k=5))
-    return code
-
-# ===================== SOCKET EVENTS =====================
-@socketio.on("connect")
-def handle_connect():
-    print(f"🔌 Client connected: {request.sid}")
-
-@socketio.on("disconnect")
-def handle_disconnect():
-    print(f"🔌 Client disconnected: {request.sid}")
-    # Handle disconnect...
-
-@socketio.on("join_room")
-def handle_join(data):
-    code = data.get("code")
-    name = data.get("name")
-    
-    print(f"📥 Join request - Code: {code}, Name: {name}, SID: {request.sid}")
-    
-    if not code or not name:
-        emit("error", {"msg": "Data tidak lengkap!"}, to=request.sid)
-        return
-    
-    if code not in rooms:
-        emit("error", {"msg": "Room tidak ditemukan!"}, to=request.sid)
-        return
+    message = request.args.get("message", "")
     
     room = rooms[code]
-    join_room(code)
+    player_id = session.get('player_id')
     
-    # Simpan player
-    room["players"][request.sid] = name
+    # Handle jika player_id tidak ada di session
+    player_name = "Unknown"
+    is_host = False
     
-    # Jika host, simpan SID
-    if name == room["host_name"] and room["host_sid"] is None:
-        room["host_sid"] = request.sid
-        print(f"⭐ Host SID saved: {request.sid}")
+    if player_id and player_id in room["players"]:
+        player_name = room["players"][player_id]["name"]
+        is_host = (player_id == room["host_id"])
     
-    # Update semua player
-    players_list = list(room["players"].values())
-    print(f"👥 Players in room {code}: {players_list}")
-    
-    socketio.emit("update_players", players_list, room=code)
-    emit("join_success", {"code": code, "name": name}, to=request.sid)
-
-@socketio.on("start_game")
-def handle_start_game(data):
-    code = data.get("code")
-    
-    print(f"🎮 Start game request - Code: {code}, SID: {request.sid}")
-    
-    if code not in rooms:
-        emit("error", {"msg": "Room tidak ditemukan!"}, to=request.sid)
-        return
-    
-    room = rooms[code]
-    
-    # Cek host
-    if request.sid != room.get("host_sid"):
-        emit("error", {"msg": "Hanya host yang bisa memulai game!"}, to=request.sid)
-        return
-    
-    # Cek jumlah pemain
-    players = list(room["players"].keys())
-    if len(players) < 2:
-        emit("error", {"msg": "Minimal 2 pemain!"}, to=request.sid)
-        return
-    
-    if room.get("game_started", False):
-        emit("error", {"msg": "Game sudah dimulai!"}, to=request.sid)
-        return
-    
-    # Mulai game
-    room["game_started"] = True
-    
-    # Pilih impostor
-    impostor_sid = random.choice(players)
-    room["impostor_sid"] = impostor_sid
-    room["impostor_name"] = room["players"][impostor_sid]
-    
-    print(f"😈 Impostor: {room['impostor_name']}")
-    print(f"🔑 Secret word: {room['word']}")
-    
-    # Kirim role ke masing-masing pemain
-    for sid in players:
-        if sid == impostor_sid:
-            emit("role", {"text": "IMPOSTOR 😈", "is_impostor": True}, to=sid)
-        else:
-            emit("role", {"text": room["word"], "is_impostor": False}, to=sid)
-    
-    # Beri tahu semua game dimulai
-    socketio.emit("game_started", {
-        "message": "Game dimulai! Clue timer akan segera dimulai..."
-    }, room=code)
-    
-    # Mulai clue timer (pakai background_task)
-    print(f"⏰ Starting clue timer for room {code}")
-    socketio.start_background_task(clue_timer, code)
-
-@socketio.on("vote")
-def handle_vote(data):
-    code = data.get("code")
-    target = data.get("target")
-    
-    print(f"🗳️ Vote received - Room: {code}, Target: {target}, Voter: {request.sid}")
-    
-    if code not in rooms:
-        emit("error", {"msg": "Room tidak ditemukan!"}, to=request.sid)
-        return
-    
-    room = rooms[code]
-    voter = room["players"].get(request.sid)
-    
-    if not voter:
-        emit("error", {"msg": "Anda tidak terdaftar!"}, to=request.sid)
-        return
-    
-    if target not in room["players"].values():
-        emit("error", {"msg": "Target tidak ditemukan!"}, to=request.sid)
-        return
-    
-    # Catat vote
-    room["votes"][target] = room["votes"].get(target, 0) + 1
-    print(f"📊 Updated votes: {room['votes']}")
-    
-    socketio.emit("vote_update", room["votes"], room=code)
-    emit("vote_confirmed", {"target": target}, to=request.sid)
-
-# ===================== MAIN =====================
-if __name__ == "__main__":
-    print("🚀 Server starting on Python 3.13...")
-    socketio.run(
-        app, 
-        debug=True, 
-        host="0.0.0.0", 
-        port=5000,
-        allow_unsafe_werkzeug=True  # thread-safe dev server
+    return render_template(
+        "result.html", 
+        code=code, 
+        eliminated=eliminated, 
+        is_impostor=is_impostor, 
+        impostor=impostor,
+        message=message,
+        player_name=player_name,
+        is_host=is_host
     )
+
+@app.route("/api/restart/<code>", methods=["POST"])
+def api_restart(code):
+    if code not in rooms:
+        return jsonify({"error": "Room tidak ditemukan"}), 404
+    
+    room = rooms[code]
+    player_id = session.get('player_id')
+    
+    if player_id != room["host_id"]:
+        return jsonify({"error": "Hanya host yang bisa merestart game"}), 403
+    
+    # Reset game
+    room["word"] = random.choice(words)
+    room["impostor_id"] = None
+    room["impostor_name"] = None
+    room["votes"] = {}
+    room["voters"] = set()
+    room["game_started"] = False
+    room["clue_time"] = 0
+    room["voting_time"] = 0
+    room["messages"] = []
+    
+    return jsonify({"success": True})
+
+@app.route("/api/leave/<code>", methods=["POST"])
+def api_leave(code):
+    if code not in rooms:
+        return jsonify({"error": "Room tidak ditemukan"}), 404
+    
+    room = rooms[code]
+    player_id = session.get('player_id')
+    
+    if not player_id or player_id not in room["players"]:
+        return jsonify({"error": "Anda tidak ada di room"}), 400
+    
+    # Hapus player
+    del room["players"][player_id]
+    
+    # Jika room kosong, hapus room
+    if len(room["players"]) == 0:
+        del rooms[code]
+        session.clear()
+        return jsonify({"success": True, "redirect": "/"})
+    
+    # Jika host keluar, pilih host baru
+    if player_id == room["host_id"] and room["players"]:
+        new_host_id = list(room["players"].keys())[0]
+        room["host_id"] = new_host_id
+        room["host_name"] = room["players"][new_host_id]["name"]
+    
+    session.clear()
+    return jsonify({"success": True, "redirect": "/"})
+
+if __name__ == "__main__":
+    app.run(debug=True)

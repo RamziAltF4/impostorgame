@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>Impostor Game - Buat Room</title>
+    <title>Impostor Game - Gabung Room</title>
     <style>
         * {
             margin: 0;
@@ -60,12 +60,6 @@
             text-align: center;
         }
 
-        @media (min-width: 480px) {
-            h1 {
-                font-size: 2.5em;
-            }
-        }
-
         .subtitle {
             color: #666;
             text-align: center;
@@ -112,6 +106,7 @@
             font-weight: 600;
             cursor: pointer;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin-bottom: 10px;
             touch-action: manipulation;
             min-height: 55px;
         }
@@ -121,8 +116,8 @@
             box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
         }
 
-        .btn:active {
-            transform: translateY(0);
+        .btn-secondary {
+            background: #6c757d;
         }
 
         .error {
@@ -136,82 +131,23 @@
             word-break: break-word;
         }
 
-        .divider {
-            text-align: center;
-            margin: 25px 0;
-            position: relative;
-        }
-
-        .divider::before,
-        .divider::after {
-            content: "";
-            position: absolute;
-            top: 50%;
-            width: 40%;
-            height: 1px;
-            background: #e0e0e0;
-        }
-
-        .divider::before {
-            left: 0;
-        }
-
-        .divider::after {
-            right: 0;
-        }
-
-        .divider span {
-            background: white;
-            padding: 0 10px;
-            color: #999;
-            font-size: 14px;
-        }
-
-        .join-link {
-            text-align: center;
-            margin: 20px 0;
-        }
-
-        .join-link a {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: 500;
-            font-size: 16px;
-            padding: 10px;
-            display: inline-block;
-        }
-
         .info {
-            margin-top: 25px;
-            padding: 20px 15px;
-            background: #f8f9fa;
-            border-radius: 16px;
-            color: #666;
-        }
-
-        .info h3 {
-            color: #333;
-            margin-bottom: 12px;
-            font-size: 16px;
-        }
-
-        .info ul {
-            list-style-position: inside;
-            margin-left: 5px;
-        }
-
-        .info li {
-            margin: 8px 0;
+            margin-top: 20px;
+            padding: 15px;
+            background: #e7f3ff;
+            border-radius: 12px;
+            color: #004085;
+            border-left: 4px solid #004085;
             font-size: 14px;
-            line-height: 1.4;
+            line-height: 1.5;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="card">
-            <h1>🎮 Impostor Game</h1>
-            <p class="subtitle">Buat room dan ajak temanmu!</p>
+            <h1>🔗 Gabung Room</h1>
+            <p class="subtitle">Masukkan kode room</p>
             
             {% if error %}
             <div class="error">
@@ -221,6 +157,20 @@
 
             <form method="POST">
                 <div class="form-group">
+                    <label for="code">🎲 Kode Room</label>
+                    <input 
+                        type="text" 
+                        id="code" 
+                        name="code" 
+                        placeholder="Contoh: ABC123" 
+                        maxlength="6"
+                        style="text-transform: uppercase;"
+                        required 
+                        autofocus
+                    >
+                </div>
+
+                <div class="form-group">
                     <label for="name">👤 Nama Kamu</label>
                     <input 
                         type="text" 
@@ -228,32 +178,23 @@
                         name="name" 
                         placeholder="Masukkan nama..." 
                         maxlength="20"
-                        required 
-                        autofocus
+                        required
                     >
                 </div>
                 
                 <button type="submit" class="btn">
-                    🚀 Buat Room Baru
+                    🚪 Gabung ke Room
                 </button>
+                
+                <a href="{{ url_for('index') }}">
+                    <button type="button" class="btn btn-secondary">
+                        ← Kembali
+                    </button>
+                </a>
             </form>
 
-            <div class="divider">
-                <span>atau</span>
-            </div>
-
-            <div class="join-link">
-                <a href="{{ url_for('join') }}">🔗 Gabung ke Room</a>
-            </div>
-
             <div class="info">
-                <h3>📋 Cara Bermain:</h3>
-                <ul>
-                    <li>Minimal 2 pemain</li>
-                    <li>Satu pemain jadi IMPOSTOR</li>
-                    <li>Crewmate tebak kata rahasia</li>
-                    <li>Voting untuk eliminasi</li>
-                </ul>
+                <strong>💡 Tips:</strong> Kode bisa didapat dari teman yang buat room.
             </div>
         </div>
     </div>
