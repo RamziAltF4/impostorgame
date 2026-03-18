@@ -360,6 +360,11 @@ def handle_vote(data):
 
 # ===================== MAIN =====================
 if __name__ == "__main__":
-    print("🚀 Server starting...")
-    print("📍 URL: http://localhost:5000")
-    socketio.run(app, debug=True, port=5000, allow_unsafe_werkzeug=True)
+    print("🚀 Server starting on Python 3.13...")
+    socketio.run(
+        app, 
+        debug=True, 
+        host="0.0.0.0", 
+        port=5000,
+        allow_unsafe_werkzeug=True  # thread-safe dev server
+    )
