@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Impostor Game - Home</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            padding: 20px;
+            width: 100%;
+        }
+        
+        h1 {
+            text-align: center;
+            color: white;
+            font-size: 3em;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .game-title {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .cards-container {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            width: 350px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-10px);
+        }
+        
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: bold;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .room-code-display {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .room-code-display h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .room-code {
+            font-size: 2em;
+            font-weight: bold;
+            color: #764ba2;
+            letter-spacing: 5px;
+        }
+        
+        .error-message {
+            color: #e74c3c;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .info-text {
+            text-align: center;
+            margin-top: 30px;
+            color: white;
+            font-size: 14px;
+        }
+        
+        .info-text a {
+            color: white;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="game-title">🎭 IMPOSTOR GAME</h1>
+        
+        <div class="cards-container">
+            <!-- Card Create Room -->
+            <div class="card">
+                <h2>🎮 Buat Room Baru</h2>
+                <form method="POST" action="/">
+                    <div class="input-group">
+                        <label for="host-name">Nama Host:</label>
+                        <input type="text" id="host-name" name="name" 
+                               placeholder="Masukkan nama Anda" required>
+                    </div>
+                    <button type="submit">Buat Room</button>
+                </form>
+            </div>
+            
+            <!-- Card Join Room -->
+            <div class="card">
+                <h2>🔑 Join Room</h2>
+                <div class="input-group">
+                    <label for="join-name">Nama Anda:</label>
+                    <input type="text" id="join-name" placeholder="Masukkan nama">
+                </div>
+                <div class="input-group">
+                    <label for="room-code">Kode Room:</label>
+                    <input type="text" id="room-code" placeholder="Contoh: ABCDE">
+                </div>
+                <button onclick="joinRoom()">Join Room</button>
+                <div id="join-error" class="error-message"></div>
+            </div>
+        </div>
+        
+        <div class="info-text">
+            <p>🎯 Cara Bermain: Satu pemain menjadi IMPOSTOR, yang lain mendapat kata rahasia.</p>
+            <p>💡 Beri clue kata tersebut tanpa ketahuan impostor, lalu vote siapa impostornya!</p>
+        </div>
+    </div>
+
+    <script>
+        function joinRoom() {
+            const name = document.getElementById('join-name').value.trim();
+            const code = document.getElementById('room-code').value.trim().toUpperCase();
+            const errorDiv = document.getElementById('join-error');
+            
+            // Validasi
+            if (!name) {
+                errorDiv.textContent = 'Nama harus diisi!';
+                return;
+            }
+            
+            if (!code) {
+                errorDiv.textContent = 'Kode room harus diisi!';
+                return;
+            }
+            
+            if (code.length !== 5) {
+                errorDiv.textContent = 'Kode room harus 5 karakter!';
+                return;
+            }
+            
+            // Redirect ke halaman game
+            window.location.href = `/game/${code}?name=${encodeURIComponent(name)}`;
+        }
+        
+        // Enter key pada input
+        document.getElementById('room-code').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                joinRoom();
+            }
+        });
+        
+        document.getElementById('join-name').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                joinRoom();
+            }
+        });
+    </script>
+</body>
+</html>

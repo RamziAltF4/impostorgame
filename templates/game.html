@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Impostor Game - Room {{ code }}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .navbar {
+            background: white;
+            padding: 15px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .room-info {
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .room-code {
+            background: #667eea;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        
+        .host-badge {
+            background: #f1c40f;
+            color: #333;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        
+        .player-name {
+            background: #f0f0f0;
+            padding: 5px 15px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        
+        .game-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        
+        .sidebar h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .players-list {
+            list-style: none;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .players-list li {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .player-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #2ecc71;
+        }
+        
+        .player-indicator.host {
+            background: #f1c40f;
+        }
+        
+        .player-indicator.you {
+            background: #3498db;
+        }
+        
+        /* Main Game Area */
+        .game-area {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        
+        .role-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        
+        .role-card h3 {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+        
+        .role-text {
+            font-size: 3em;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            word-break: break-word;
+        }
+        
+        /* Timer */
+        .timer-container {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        
+        .timer {
+            font-size: 5em;
+            font-weight: bold;
+            color: #667eea;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .timer-label {
+            font-size: 1.2em;
+            color: #666;
+            margin-top: 10px;
+        }
+        
+        /* Voting Section */
+        .voting-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
+        }
+        
+        .voting-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .vote-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .vote-input-group select {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            background: white;
+        }
+        
+        .vote-input-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .vote-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .vote-btn:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+        }
+        
+        .vote-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .votes-display {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        .votes-display h4 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .vote-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            margin-bottom: 5px;
+            background: white;
+            border-radius: 5px;
+            border-left: 3px solid #667eea;
+        }
+        
+        .vote-count {
+            background: #667eea;
+            color: white;
+            padding: 2px 12px;
+            border-radius: 15px;
+            font-weight: bold;
+        }
+        
+        /* Start Game Button */
+        .start-btn {
+            background: #2ecc71;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+        
+        .start-btn:hover:not(:disabled) {
+            background: #27ae60;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(46, 204, 113, 0.4);
+        }
+        
+        .start-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        
+        /* Notifications */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        }
+        
+        .notification.success {
+            background: #2ecc71;
+        }
+        
+        .notification.error {
+            background: #e74c3c;
+        }
+        
+        .notification.info {
+            background: #3498db;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes fadeOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        .message-box {
+            text-align: center;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .message-box h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .message-box p {
+            margin: 10px 0;
+            color: #666;
+        }
+        
+        .message-box strong {
+            color: #667eea;
+            font-size: 1.2em;
+        }
+        
+        .warning-text {
+            color: #e74c3c;
+            font-size: 0.9em;
+            margin-top: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .share-link {
+            background: #667eea;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 15px 0;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .share-link:hover {
+            background: #5a6fd8;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .game-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .role-text {
+                font-size: 2em;
+            }
+            
+            .timer {
+                font-size: 3em;
+            }
+            
+            .navbar {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <div class="navbar">
+        <div class="room-info">
+            <span class="room-code">{{ code }}</span>
+            {% if name == host_name %}
+                <span class="host-badge">⭐ HOST</span>
+            {% endif %}
+        </div>
+        <div class="player-name">
+            <span>👤</span> {{ name }}
+        </div>
+    </div>
+    
+    <!-- Main Container -->
+    <div class="container">
+        <div id="notifications"></div>
+        
+        <div class="game-grid">
+            <!-- Sidebar (Players List) -->
+            <!-- Sidebar -->
+<div class="sidebar">
+    <h2>👥 Players (<span id="playerCount">{{ player_count|default(0) }}</span>)</h2>
+    <ul class="players-list" id="players-list">
+        {% for player in players %}
+        <li>
+            <span class="player-indicator 
+                {% if player == host_name %}host{% endif %}
+                {% if player == name %}you{% endif %}">
+            </span>
+            {{ player }}
+            {% if player == name %}
+                <strong>(You)</strong>
+            {% endif %}
+            {% if player == host_name %}
+                ⭐
+            {% endif %}
+        </li>
+        {% else %}
+        <li style="text-align: center; color: #999;">
+            Belum ada pemain...
+        </li>
+        {% endfor %}
+    </ul>
+    
+    <!-- Host Controls -->
+    <div id="hostControls">
+        {% if name == host_name %}
+            <!-- Ini akan di-update oleh JavaScript -->
+            <div id="hostControlsDynamic">
+                {% if player_count < 2 %}
+                <div class="message-box" id="waitingMessage">
+                    <p>⏳ Minimal 2 pemain untuk memulai game...</p>
+                    <p>Sekarang: <span id="initialPlayerCount">{{ player_count }}</span> pemain</p>
+                </div>
+                <button id="startGameBtn" class="start-btn" onclick="startGame()" disabled>
+                    🎮 Mulai Game (Minimal 2 pemain)
+                </button>
+                {% else %}
+                <button id="startGameBtn" class="start-btn" onclick="startGame()">
+                    🎮 Mulai Game Sekarang!
+                </button>
+                {% endif %}
+            </div>
+        {% else %}
+            <div class="message-box" id="nonHostMessage">
+                <p>Menunggu host memulai game...</p>
+                <p>Host: <strong>{{ host_name }}</strong></p>
+                <div class="loading"></div>
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- Share Room Info -->
+    <div class="share-link" onclick="copyRoomCode()">
+        📋 Klik untuk copy kode room: {{ code }}
+    </div>
+</div>
+            
+            <!-- Main Game Area -->
+            <div class="game-area">
+                <!-- Pre-Game Message -->
+                <div id="preGame" class="{% if players %}hidden{% endif %}">
+                    <div class="message-box">
+                        <h2>👋 Selamat datang di room {{ code }}!</h2>
+                        <p>Silakan tunggu pemain lain bergabung...</p>
+                        <p>Share kode ini ke temanmu: <strong>{{ code }}</strong></p>
+                        {% if name == host_name %}
+                            <p style="color: #27ae60; margin-top: 20px;">✨ Kamu adalah HOST. Tekan "Mulai Game" setelah pemain cukup!</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Game Content (Hidden until game starts) -->
+                <div id="gameContent" class="hidden">
+                    <!-- Role Display -->
+                    <div class="role-card">
+                        <h3>🎭 Your Secret Role</h3>
+                        <div id="roleDisplay" class="role-text">-</div>
+                    </div>
+                    
+                    <!-- Timer Display -->
+                    <div class="timer-container">
+                        <div id="timerDisplay" class="timer">--</div>
+                        <div id="timerLabel" class="timer-label">Menunggu game dimulai...</div>
+                    </div>
+                    
+                    <!-- Voting Section (Hidden until voting starts) -->
+                    <div id="votingSection" class="voting-section hidden">
+                        <h3>🗳️ Voting Phase</h3>
+                        <p style="margin-bottom: 15px; color: #666;">Vote siapa yang menurutmu IMPOSTOR!</p>
+                        
+                        <div class="vote-input-group">
+                            <select id="voteTarget">
+                                <option value="">Pilih pemain target...</option>
+                                {% for player in players %}
+                                    {% if player != name %}
+                                        <option value="{{ player }}">{{ player }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                            <button id="voteBtn" class="vote-btn" onclick="castVote()">Vote!</button>
+                        </div>
+                        
+                        <div class="votes-display">
+                            <h4>📊 Hasil Voting Sementara:</h4>
+                            <div id="votesList">
+                                <p style="color: #999; text-align: center;">Belum ada vote</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // ===================== INITIALIZATION =====================
+        const socket = io();
+        const playerName = "{{ name }}";
+        const roomCode = "{{ code }}";
+        const hostName = "{{ host_name }}";
+        let currentRole = "";
+        let isImpostor = false;
+        let hasVoted = false;
+        let gameStarted = false;
+        
+        console.log("Game page loaded:", { roomCode, playerName, hostName });
+        
+        // Join room automatically
+        window.onload = function() {
+            console.log("Joining room...");
+            socket.emit("join_room", {
+                code: roomCode,
+                name: playerName
+            });
+        };
+        
+        // ===================== SOCKET EVENT HANDLERS =====================
+        
+        // Join success
+        socket.on("join_success", function(data) {
+            console.log("Join success:", data);
+            showNotification("✅ Berhasil join room " + data.code, "success");
+        });
+        
+        // Update player list
+        socket.on("update_players", function(players) {
+            console.log("Players updated:", players);
+            updatePlayersList(players);
+            updateVoteTargets(players);
+            updatePlayerCount(players.length);
+            
+            // Update host controls based on player count
+            if (playerName === hostName) {
+                updateHostControls(players.length);
+            }
+        });
+        
+        // Host status update
+        socket.on("host_status", function(data) {
+            console.log("Host status:", data);
+        });
+        
+        // Game started
+        socket.on("game_started", function(data) {
+            console.log("Game started!");
+            gameStarted = true;
+            showNotification("🎮 " + data.message, "info");
+            document.getElementById("preGame").classList.add("hidden");
+            document.getElementById("gameContent").classList.remove("hidden");
+        });
+        
+        // Receive role
+        socket.on("role", function(data) {
+            console.log("Role received:", data);
+            currentRole = data.text;
+            isImpostor = data.is_impostor;
+            document.getElementById("roleDisplay").innerText = data.text;
+            
+            if (data.is_impostor) {
+                showNotification("😈 Kamu adalah IMPOSTOR! Jangan ketahuan!", "error");
+            } else {
+                showNotification("🔑 Kata rahasia: " + data.text, "success");
+            }
+        });
+        
+        // Clue timer
+        socket.on("clue_timer", function(data) {
+            document.getElementById("timerDisplay").innerText = data.time;
+            document.getElementById("timerLabel").innerHTML = 
+                `⏰ Clue time... <small style="display: block; margin-top: 5px;">(${data.current_player} memberi clue)</small>`;
+        });
+        
+        // Start voting
+        socket.on("start_voting", function() {
+            console.log("Voting started!");
+            document.getElementById("votingSection").classList.remove("hidden");
+            document.getElementById("timerLabel").innerHTML = "🗳️ Voting dimulai! Pilih targetmu...";
+        });
+        
+        // Voting timer
+        socket.on("voting_timer", function(data) {
+            document.getElementById("timerDisplay").innerText = data.time;
+        });
+        
+        // Vote update
+        socket.on("vote_update", function(votes) {
+            console.log("Votes updated:", votes);
+            displayVotes(votes);
+        });
+        
+        // Vote confirmed
+        socket.on("vote_confirmed", function(data) {
+            hasVoted = true;
+            document.getElementById("voteBtn").disabled = true;
+            showNotification("✅ Vote untuk " + data.target + " tercatat!", "success");
+        });
+        
+        // Voting end
+        socket.on("voting_end", function(data) {
+            console.log("Voting ended:", data);
+            // Redirect to result page
+            let url = `/result/${roomCode}?eliminated=${data.eliminated || 'None'}`;
+            url += `&is_impostor=${data.is_impostor}`;
+            url += `&impostor=${data.impostor}`;
+            window.location.href = url;
+        });
+        
+        // Error
+        socket.on("error", function(data) {
+            console.error("Socket error:", data);
+            showNotification("❌ " + data.msg, "error");
+        });
+        
+        // Host disconnected
+        socket.on("host_disconnected", function(data) {
+            console.warn("Host disconnected");
+            showNotification("⚠️ " + data.message, "error");
+            if (!gameStarted) {
+                document.getElementById("hostControls")?.classList.add("hidden");
+            }
+        });
+        
+        // ===================== FUNCTIONS =====================
+        
+        function startGame() {
+            console.log("Start game clicked for room:", roomCode);
+            if (playerName !== hostName) {
+                showNotification("Hanya host yang bisa memulai game!", "error");
+                return;
+            }
+            
+            // Disable button to prevent double click
+            const startBtn = document.getElementById("startGameBtn");
+            if (startBtn) {
+                startBtn.disabled = true;
+                startBtn.innerHTML = 'Memulai game... <span class="loading"></span>';
+            }
+            
+            socket.emit("start_game", {code: roomCode});
+        }
+        
+        function castVote() {
+            if (hasVoted) {
+                showNotification("Kamu sudah melakukan vote!", "error");
+                return;
+            }
+            
+            const target = document.getElementById("voteTarget").value;
+            if (!target) {
+                showNotification("Pilih target vote terlebih dahulu!", "error");
+                return;
+            }
+            
+            console.log("Casting vote for:", target);
+            socket.emit("vote", {
+                code: roomCode,
+                target: target
+            });
+        }
+        
+        function updatePlayersList(players) {
+            const list = document.getElementById("players-list");
+            if (!list) return;
+            
+            list.innerHTML = "";
+            
+            players.forEach(function(player) {
+                const li = document.createElement("li");
+                
+                let indicatorClass = "player-indicator";
+                if (player === hostName) indicatorClass += " host";
+                if (player === playerName) indicatorClass += " you";
+                
+                let playerText = player;
+                if (player === playerName) playerText += " <strong>(You)</strong>";
+                if (player === hostName) playerText += " ⭐";
+                
+                li.innerHTML = `
+                    <span class="${indicatorClass}"></span>
+                    ${playerText}
+                `;
+                list.appendChild(li);
+            });
+        }
+        
+        function updateVoteTargets(players) {
+            const select = document.getElementById("voteTarget");
+            if (!select) return;
+            
+            select.innerHTML = '<option value="">Pilih pemain target...</option>';
+            
+            players.forEach(function(player) {
+                if (player !== playerName) {
+                    const option = document.createElement("option");
+                    option.value = player;
+                    option.textContent = player;
+                    select.appendChild(option);
+                }
+            });
+        }
+        
+        function updatePlayerCount(count) {
+            const countEl = document.getElementById("playerCount");
+            if (countEl) {
+                countEl.textContent = count;
+            }
+        }
+        
+        function updateHostControls(playerCount) {
+            const startBtn = document.getElementById("startGameBtn");
+            if (!startBtn) return;
+            
+            if (playerCount < 2) {
+                startBtn.disabled = true;
+                startBtn.innerHTML = '🎮 Mulai Game (Minimal 2 pemain)';
+            } else {
+                startBtn.disabled = false;
+                startBtn.innerHTML = '🎮 Mulai Game Sekarang!';
+            }
+        }
+        
+        function displayVotes(votes) {
+            const votesDiv = document.getElementById("votesList");
+            if (!votesDiv) return;
+            
+            votesDiv.innerHTML = "";
+            
+            if (Object.keys(votes).length === 0) {
+                votesDiv.innerHTML = '<p style="color: #999; text-align: center;">Belum ada vote</p>';
+                return;
+            }
+            
+            // Sort by vote count (highest first)
+            const sortedVotes = Object.entries(votes).sort((a, b) => b[1] - a[1]);
+            
+            for (let [player, count] of sortedVotes) {
+                const voteItem = document.createElement("div");
+                voteItem.className = "vote-item";
+                voteItem.innerHTML = `
+                    <span><strong>${player}</strong></span>
+                    <span class="vote-count">${count} vote${count !== 1 ? 's' : ''}</span>
+                `;
+                votesDiv.appendChild(voteItem);
+            }
+        }
+        
+        function showNotification(message, type) {
+            const container = document.getElementById("notifications");
+            const notification = document.createElement("div");
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            container.appendChild(notification);
+            
+            // Auto remove after 3 seconds
+            setTimeout(function() {
+                notification.style.animation = "fadeOut 0.3s ease-out";
+                setTimeout(function() {
+                    notification.remove();
+                }, 300);
+            }, 3000);
+        }
+        
+        function copyRoomCode() {
+            navigator.clipboard.writeText(roomCode).then(function() {
+                showNotification("📋 Kode room " + roomCode + " disalin!", "success");
+            }).catch(function() {
+                showNotification("Gagal menyalin kode", "error");
+            });
+        }
+        
+        // Handle page refresh/close
+        window.addEventListener('beforeunload', function() {
+            // Optional: Notify server that player is leaving
+            // But Socket.IO handles this automatically on disconnect
+        });
+    </script>
+</body>
+</html>
