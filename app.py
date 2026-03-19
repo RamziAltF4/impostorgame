@@ -3,10 +3,26 @@ import random
 import string
 from datetime import datetime, timedelta
 import uuid
+import os
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'rahasia123-super-secret-key-2024'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
+
+# Deteksi environment (Vercel atau local)
+is_vercel = os.environ.get('VERCEL', False) or os.environ.get('VERCEL_ENV', False)
+
+if is_vercel:
+    # Untuk Vercel (HTTPS)
+    app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+    app.config['SESSION_COOKIE_SECURE'] = True
+else:
+    # Untuk Local (HTTP)
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['SESSION_COOKIE_SECURE'] = False
+
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_DOMAIN'] = None
 
 rooms = {}
 words = [
@@ -287,14 +303,16 @@ def game(code):
 
 @app.route("/api/status/<code>")
 def api_status(code):
+    # Ambil player_id dari query parameter (untuk Vercel) atau session
+    player_id = request.args.get('player_id') or session.get('player_id')
+    
     if code not in rooms:
         return jsonify({"error": "Room tidak ditemukan"}), 404
     
     room = rooms[code]
-    player_id = session.get('player_id')
     
     # Validasi player
-    if player_id and player_id not in room["players"]:
+    if not player_id or player_id not in room["players"]:
         return jsonify({
             "error": "player_eliminated",
             "message": "Anda telah tereliminasi",
@@ -397,7 +415,7 @@ def api_status(code):
                     "total_players": len(room["players"]),
                     "messages": room.get("messages", [])[-10:],
                     "voting_active": False,
-                    "round_result": result,  # KIRIM ROUND RESULT
+                    "round_result": result,
                     "voters": []
                 }
             else:
@@ -415,7 +433,7 @@ def api_status(code):
                     "total_players": len(room["players"]),
                     "messages": room.get("messages", [])[-10:],
                     "voting_active": False,
-                    "voting_end": result,  # KIRIM VOTING END
+                    "voting_end": result,
                     "voters": []
                 }
             
@@ -455,144 +473,16 @@ def api_status(code):
             response_data["word_hint"] = f"Kata rahasia: {room['word']}"
     
     return jsonify(response_data)
-    
-    # Response default
-    response_data = {
-        "players": players_list,
-        "game_started": room["game_started"],
-        "clue_time": room["clue_time"],
-        "voting_time": room["voting_time"],
-        "current_clue_giver": room.get("current_clue_giver_name"),
-        "word_hint": None,
-        "votes_cast": len(room.get("voters", set())),
-        "total_players": len(room["players"]),
-        "messages": room.get("messages", [])[-10:],
-        "voting_active": room["voting_time"] > 0,
-        "voters": list(room.get("voters", set()))  # Kirim daftar voters
-    }
-    
-    # Role info
-    if room["game_started"]:
-        if player_id == room.get("impostor_id"):
-            response_data["your_role"] = "IMPOSTOR"
-            response_data["word_hint"] = "Kamu adalah IMPOSTOR!"
-        else:
-            response_data["your_role"] = "CREWMATE"
-            response_data["word_hint"] = f"Kata rahasia: {room['word']}"
-    
-    return jsonify(response_data)
-    
-    # Siapkan data pemain (seperti biasa)
-    players_list = [{
-        "id": pid,
-        "name": data["name"],
-        "is_you": (pid == player_id)
-    } for pid, data in room["players"].items()]
-    
-    # PROSES COUNTDOWN
-    # Countdown clue time
-    if room["game_started"] and room["clue_time"] > 0:
-        room["clue_time"] -= 1
-    
-    # Countdown voting time
-    if room["voting_time"] > 0:
-        room["voting_time"] -= 1
-        if room["voting_time"] == 0:
-            # Voting selesai, hitung hasil
-            result = calculate_vote_result(room)
-            
-            # Simpan hasil
-            room["last_result"] = result
-            
-            # Jika game lanjut, jangan set game_started = False
-            if result["game_continues"]:
-                # Game lanjut dengan fase clue baru
-                room["game_started"] = True
-                room["clue_time"] = 20
-                room["voting_time"] = 0
-                room["votes"] = {}
-                room["voters"] = set()
-                
-                # Update players_list setelah penghapusan
-                players_list = [{
-                    "id": pid,
-                    "name": data["name"],
-                    "is_you": (pid == player_id)
-                } for pid, data in room["players"].items()]
-                
-                # Kirim hasil ke semua pemain, tapi dengan flag khusus
-                response_data = {
-                    "players": players_list,
-                    "game_started": room["game_started"],
-                    "clue_time": room["clue_time"],
-                    "voting_time": room["voting_time"],
-                    "current_clue_giver": room.get("current_clue_giver_name"),
-                    "word_hint": None,
-                    "votes_cast": len(room.get("voters", set())),
-                    "total_players": len(room["players"]),
-                    "messages": room.get("messages", [])[-10:],
-                    "voting_active": room["voting_time"] > 0,
-                    "round_result": result
-                }
-                return jsonify(response_data)
-            else:
-                # Game selesai
-                room["game_started"] = False
-                
-                # Update players_list setelah penghapusan
-                players_list = [{
-                    "id": pid,
-                    "name": data["name"],
-                    "is_you": (pid == player_id)
-                } for pid, data in room["players"].items()]
-                
-                response_data = {
-                    "players": players_list,
-                    "game_started": False,
-                    "clue_time": 0,
-                    "voting_time": 0,
-                    "current_clue_giver": None,
-                    "word_hint": None,
-                    "votes_cast": 0,
-                    "total_players": len(room["players"]),
-                    "messages": room.get("messages", [])[-10:],
-                    "voting_active": False,
-                    "voting_end": result
-                }
-                return jsonify(response_data)
-    
-    # BUAT RESPONSE DATA (default)
-    response_data = {
-        "players": players_list,
-        "game_started": room["game_started"],
-        "clue_time": room["clue_time"],
-        "voting_time": room["voting_time"],
-        "current_clue_giver": room.get("current_clue_giver_name"),
-        "word_hint": None,
-        "votes_cast": len(room.get("voters", set())),
-        "total_players": len(room["players"]),
-        "messages": room.get("messages", [])[-10:],
-        "voting_active": room["voting_time"] > 0
-    }
-    
-    # Role info (hanya untuk player sendiri)
-    if room["game_started"]:
-        if player_id == room.get("impostor_id"):
-            response_data["your_role"] = "IMPOSTOR"
-            response_data["word_hint"] = "Kamu adalah IMPOSTOR!"
-        else:
-            response_data["your_role"] = "CREWMATE"
-            response_data["word_hint"] = f"Kata rahasia: {room['word']}"
-    
-    return jsonify(response_data)
 
 @app.route("/api/start/<code>", methods=["POST"])
 def api_start_game(code):
+    # Ambil player_id dari query parameter
+    player_id = request.args.get('player_id') or session.get('player_id')
+    
     if code not in rooms:
         return jsonify({"error": "Room tidak ditemukan"}), 404
     
     room = rooms[code]
-    player_id = session.get('player_id')
     
     # Cek host
     if player_id != room["host_id"]:
@@ -630,11 +520,13 @@ def api_start_game(code):
 
 @app.route("/api/start-voting/<code>", methods=["POST"])
 def api_start_voting(code):
+    # Ambil player_id dari query parameter
+    player_id = request.args.get('player_id') or session.get('player_id')
+    
     if code not in rooms:
         return jsonify({"error": "Room tidak ditemukan"}), 404
     
     room = rooms[code]
-    player_id = session.get('player_id')
     
     # Cek host
     if player_id != room["host_id"]:
@@ -664,16 +556,18 @@ def api_start_voting(code):
 
 @app.route("/api/vote/<code>", methods=["POST"])
 def api_vote(code):
+    # Ambil player_id dari query parameter
+    player_id = request.args.get('player_id') or session.get('player_id')
+    
     if code not in rooms:
         return jsonify({"error": "Room tidak ditemukan"}), 404
     
     room = rooms[code]
     data = request.json
     target_name = data.get("target", "").strip()
-    voter_id = session.get('player_id')
     
     # Validasi
-    if not voter_id or voter_id not in room["players"]:
+    if not player_id or player_id not in room["players"]:
         return jsonify({"error": "Anda tidak terdaftar di room ini"}), 400
     
     if not room["game_started"]:
@@ -682,7 +576,7 @@ def api_vote(code):
     if room["voting_time"] <= 0:
         return jsonify({"error": "Fase voting sudah berakhir"}), 400
     
-    if voter_id in room.get("voters", set()):
+    if player_id in room.get("voters", set()):
         return jsonify({"error": "Anda sudah melakukan vote"}), 400
     
     # Cari target berdasarkan nama (case insensitive)
@@ -695,13 +589,13 @@ def api_vote(code):
     if not target_id:
         return jsonify({"error": "Target tidak ditemukan"}), 400
     
-    if target_id == voter_id:
+    if target_id == player_id:
         return jsonify({"error": "Tidak bisa vote diri sendiri"}), 400
     
     # Catat vote
-    room["votes"][voter_id] = target_id
+    room["votes"][player_id] = target_id
     room["voters"] = room.get("voters", set())
-    room["voters"].add(voter_id)
+    room["voters"].add(player_id)
     
     return jsonify({
         "success": True,
@@ -712,13 +606,15 @@ def api_vote(code):
 
 @app.route("/api/chat/<code>", methods=["POST"])
 def api_chat(code):
+    # Ambil player_id dari query parameter
+    player_id = request.args.get('player_id') or session.get('player_id')
+    
     if code not in rooms:
         return jsonify({"error": "Room tidak ditemukan"}), 404
     
     room = rooms[code]
     data = request.json
     message = data.get("message", "").strip()
-    player_id = session.get('player_id')
     
     if not player_id or player_id not in room["players"]:
         return jsonify({"error": "Anda tidak terdaftar"}), 400
@@ -791,11 +687,13 @@ def result(code):
 
 @app.route("/api/restart/<code>", methods=["POST"])
 def api_restart(code):
+    # Ambil player_id dari query parameter
+    player_id = request.args.get('player_id') or session.get('player_id')
+    
     if code not in rooms:
         return jsonify({"error": "Room tidak ditemukan"}), 404
     
     room = rooms[code]
-    player_id = session.get('player_id')
     
     if player_id != room["host_id"]:
         return jsonify({"error": "Hanya host yang bisa merestart game"}), 403
@@ -815,11 +713,13 @@ def api_restart(code):
 
 @app.route("/api/leave/<code>", methods=["POST"])
 def api_leave(code):
+    # Ambil player_id dari query parameter
+    player_id = request.args.get('player_id') or session.get('player_id')
+    
     if code not in rooms:
         return jsonify({"error": "Room tidak ditemukan"}), 404
     
     room = rooms[code]
-    player_id = session.get('player_id')
     
     if not player_id or player_id not in room["players"]:
         return jsonify({"error": "Anda tidak ada di room"}), 400
