@@ -1,8 +1,29 @@
+# Web Framework
 Flask==2.3.3
-supabase==2.0.3
-python-dotenv==1.0.0
+Werkzeug==2.3.7
+
+# Supabase
+supabase==2.5.0
 postgrest==0.16.10
-gotrue==2.0.0
-realtime==1.0.2
+gotrue==2.5.0
+realtime==2.0.0
+storage3==0.7.0
+authlib==1.3.0
+
+# HTTP Client
 httpx==0.27.0
+httpcore==1.0.5
+h11==0.14.0
+
+# Utility
+python-dotenv==1.0.0
 python-dateutil==2.8.2
+pytz==2024.1
+UUID==1.30
+
+# Security
+cryptography==42.0.8
+PyJWT==2.8.0
+
+# Deployment
+gunicorn==21.2.0  # untuk production
