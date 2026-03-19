@@ -781,104 +781,104 @@
     }
     
     // Poll status
-async function pollStatus() {
-    try {
-        const res = await fetch(`/api/status/${roomCode}`);
-        
-        // Cek status code
-        if (res.status === 403) {
+    async function pollStatus() {
+        try {
+            const res = await fetch(`/api/status/${roomCode}?player_id=${encodeURIComponent(playerId)}`);
+            
+            // Cek status code
+            if (res.status === 403) {
+                const data = await res.json();
+                if (data.error === "player_eliminated") {
+                    showToast('Anda telah tereliminasi!', 'warning', 1500);
+                    setTimeout(() => {
+                        window.location.href = data.redirect || `/result/${roomCode}`;
+                    }, 1500);
+                }
+                return;
+            }
+            
             const data = await res.json();
-            if (data.error === "player_eliminated") {
-                showToast('Anda telah tereliminasi!', 'warning', 1500);
+            
+            if(data.error) {
+                console.warn('Room error:', data.error);
+                showToast('Room tidak ditemukan', 'error', 2000);
                 setTimeout(() => {
-                    window.location.href = data.redirect || `/result/${roomCode}`;
+                    window.location.href = '/join';
+                }, 2000);
+                return;
+            }
+
+            // CEK APAKAH PLAYER MASIH ADA
+            const playerStillInRoom = data.players.some(p => p.id === playerId);
+            if (!playerStillInRoom) {
+                console.warn('Player tidak ditemukan di room');
+                showToast('Anda telah tereliminasi', 'warning', 1500);
+                setTimeout(() => {
+                    window.location.href = `/result/${roomCode}`;
                 }, 1500);
+                return;
             }
-            return;
-        }
-        
-        const data = await res.json();
-        
-        if(data.error) {
-            console.warn('Room error:', data.error);
-            showToast('Room tidak ditemukan', 'error', 2000);
-            setTimeout(() => {
-                window.location.href = '/join';
-            }, 2000);
-            return;
-        }
 
-        // CEK APAKAH PLAYER MASIH ADA
-        const playerStillInRoom = data.players.some(p => p.id === playerId);
-        if (!playerStillInRoom) {
-            console.warn('Player tidak ditemukan di room');
-            showToast('Anda telah tereliminasi', 'warning', 1500);
-            setTimeout(() => {
-                window.location.href = `/result/${roomCode}`;
-            }, 1500);
-            return;
-        }
-
-        updatePlayersList(data.players);
-        updateTimer(data);
-        
-        if (data.your_role) {
-            currentRole = data.your_role;
-            currentWord = data.word_hint;
-            updateRoleInfo(data.your_role, data.word_hint);
-        }
-        
-        updateVotingSection(data);
-        updateChat(data.messages);
-        
-        // CEK ROUND RESULT (voting selesai, game lanjut)
-        if (data.round_result) {
-            console.log('Round result:', data.round_result);
-            const result = data.round_result;
+            updatePlayersList(data.players);
+            updateTimer(data);
             
-            // Reset state untuk ronde baru
-            hasVoted = false;
-            
-            // Reset tombol vote
-            const voteBtn = document.getElementById("voteBtn");
-            if (voteBtn) {
-                voteBtn.disabled = false;
-                voteBtn.textContent = "🗳️ Vote";
-            }
-            
-            // Tampilkan notifikasi
-            showToast(result.message, result.is_impostor ? 'success' : 'warning', 5000);
-            
-            // Update daftar pemain dan role
-            if (data.players) {
-                updatePlayersList(data.players);
-            }
             if (data.your_role) {
+                currentRole = data.your_role;
+                currentWord = data.word_hint;
                 updateRoleInfo(data.your_role, data.word_hint);
             }
-        }
-        
-        // CEK VOTING END (game selesai)
-        if (data.voting_end) {
-            console.log('Voting end:', data.voting_end);
-            const end = data.voting_end;
-            let url = `/result/${roomCode}?eliminated=${end.eliminated || 'None'}`;
-            url += `&is_impostor=${end.is_impostor}`;
-            url += `&impostor=${end.impostor}`;
-            url += `&message=${encodeURIComponent(end.message || '')}`;
-            url += `&impostor_wins=${end.impostor_wins || false}`;
             
-            setTimeout(() => {
-                window.location.href = url;
-            }, 2000);
+            updateVotingSection(data);
+            updateChat(data.messages);
+            
+            // CEK ROUND RESULT (voting selesai, game lanjut)
+            if (data.round_result) {
+                console.log('Round result:', data.round_result);
+                const result = data.round_result;
+                
+                // Reset state untuk ronde baru
+                hasVoted = false;
+                
+                // Reset tombol vote
+                const voteBtn = document.getElementById("voteBtn");
+                if (voteBtn) {
+                    voteBtn.disabled = false;
+                    voteBtn.textContent = "🗳️ Vote";
+                }
+                
+                // Tampilkan notifikasi
+                showToast(result.message, result.is_impostor ? 'success' : 'warning', 5000);
+                
+                // Update daftar pemain dan role
+                if (data.players) {
+                    updatePlayersList(data.players);
+                }
+                if (data.your_role) {
+                    updateRoleInfo(data.your_role, data.word_hint);
+                }
+            }
+            
+            // CEK VOTING END (game selesai)
+            if (data.voting_end) {
+                console.log('Voting end:', data.voting_end);
+                const end = data.voting_end;
+                let url = `/result/${roomCode}?eliminated=${end.eliminated || 'None'}`;
+                url += `&is_impostor=${end.is_impostor}`;
+                url += `&impostor=${end.impostor}`;
+                url += `&message=${encodeURIComponent(end.message || '')}`;
+                url += `&impostor_wins=${end.impostor_wins || false}`;
+                
+                setTimeout(() => {
+                    window.location.href = url;
+                }, 2000);
+            }
+            
+        } catch(err) {
+            console.error('Poll error:', err);
         }
-        
-    } catch(err) {
-        console.error('Poll error:', err);
-    }
 
-    setTimeout(pollStatus, pollInterval);
-}
+        setTimeout(pollStatus, pollInterval);
+    }
 
     // Update timer (SEDERHANA, LANGSUNG DARI SERVER)
     function updateTimer(data) {
@@ -978,31 +978,31 @@ async function pollStatus() {
     }
 
     // Update voting section
-function updateVotingSection(data) {
-    const votingSection = document.getElementById("votingSection");
-    const voteProgress = document.getElementById("voteProgress");
-    const voteBtn = document.getElementById("voteBtn");
-    
-    if (data.voting_time > 0) {
-        votingSection.classList.remove("hidden");
-        voteProgress.textContent = `Suara: ${data.votes_cast}/${data.total_players}`;
+    function updateVotingSection(data) {
+        const votingSection = document.getElementById("votingSection");
+        const voteProgress = document.getElementById("voteProgress");
+        const voteBtn = document.getElementById("voteBtn");
         
-        // CEK APAKAH PLAYER SUDAH VOTE (dari data server)
-        const playerHasVoted = data.voters && data.voters.includes(playerId);
-        
-        if (playerHasVoted) {
-            voteBtn.disabled = true;
-            voteBtn.textContent = "✓ Sudah Vote";
-            hasVoted = true; // sinkronkan variabel lokal
+        if (data.voting_time > 0) {
+            votingSection.classList.remove("hidden");
+            voteProgress.textContent = `Suara: ${data.votes_cast}/${data.total_players}`;
+            
+            // CEK APAKAH PLAYER SUDAH VOTE (dari data server)
+            const playerHasVoted = data.voters && data.voters.includes(playerId);
+            
+            if (playerHasVoted) {
+                voteBtn.disabled = true;
+                voteBtn.textContent = "✓ Sudah Vote";
+                hasVoted = true; // sinkronkan variabel lokal
+            } else {
+                voteBtn.disabled = false;
+                voteBtn.textContent = "🗳️ Vote";
+                hasVoted = false; // reset jika belum vote
+            }
         } else {
-            voteBtn.disabled = false;
-            voteBtn.textContent = "🗳️ Vote";
-            hasVoted = false; // reset jika belum vote
+            votingSection.classList.add("hidden");
         }
-    } else {
-        votingSection.classList.add("hidden");
     }
-}
 
     // Update chat
     function updateChat(messages) {
@@ -1037,7 +1037,9 @@ function updateVotingSection(data) {
         if (!isHost) return;
         
         try {
-            const res = await fetch(`/api/start/${roomCode}`, {method: "POST"});
+            const res = await fetch(`/api/start/${roomCode}?player_id=${encodeURIComponent(playerId)}`, {
+                method: "POST"
+            });
             const data = await res.json();
             
             if (data.error) {
@@ -1058,7 +1060,7 @@ function updateVotingSection(data) {
         if (!isHost) return;
         
         try {
-            const res = await fetch(`/api/start-voting/${roomCode}`, {
+            const res = await fetch(`/api/start-voting/${roomCode}?player_id=${encodeURIComponent(playerId)}`, {
                 method: "POST",
                 headers: {"Content-Type": "application/json"}
             });
@@ -1078,27 +1080,27 @@ function updateVotingSection(data) {
     }
 
     // Cast vote
-async function castVote() {
-    // Cek apakah player masih ada di room (tambahan)
-    try {
-        const checkRes = await fetch(`/api/status/${roomCode}`);
-        const checkData = await checkRes.json();
+    async function castVote() {
+        // Cek apakah player masih ada di room (tambahan)
+        try {
+            const checkRes = await fetch(`/api/status/${roomCode}?player_id=${encodeURIComponent(playerId)}`);
+            const checkData = await checkRes.json();
+            
+            if (checkData.error || !checkData.players.some(p => p.id === playerId)) {
+                showToast('Anda sudah tidak berada di room', 'warning', 1500);
+                setTimeout(() => {
+                    window.location.href = '/join';
+                }, 1500);
+                return;
+            }
+        } catch(err) {
+            console.error('Check error:', err);
+        }
         
-        if (checkData.error || !checkData.players.some(p => p.id === playerId)) {
-            showToast('Anda sudah tidak berada di room', 'warning', 1500);
-            setTimeout(() => {
-                window.location.href = '/join';
-            }, 1500);
+        if (hasVoted) {
+            showToast("Kamu sudah melakukan vote!", 'warning');
             return;
         }
-    } catch(err) {
-        console.error('Check error:', err);
-    }
-    
-    if (hasVoted) {
-        showToast("Kamu sudah melakukan vote!", 'warning');
-        return;
-    }
         
         const target = document.getElementById("voteTarget").value.trim();
         if (!target) {
@@ -1112,7 +1114,7 @@ async function castVote() {
         }
         
         try {
-            const res = await fetch(`/api/vote/${roomCode}`, {
+            const res = await fetch(`/api/vote/${roomCode}?player_id=${encodeURIComponent(playerId)}`, {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({target: target})
@@ -1144,10 +1146,10 @@ async function castVote() {
         if (!message) return;
         
         try {
-            const res = await fetch(`/api/chat/${roomCode}`, {
+            const res = await fetch(`/api/chat/${roomCode}?player_id=${encodeURIComponent(playerId)}`, {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({message})
+                body: JSON.stringify({message: message})
             });
             
             const data = await res.json();
@@ -1214,7 +1216,9 @@ async function castVote() {
             '🚪 Keluar Room',
             async () => {
                 try {
-                    const res = await fetch(`/api/leave/${roomCode}`, {method: "POST"});
+                    const res = await fetch(`/api/leave/${roomCode}?player_id=${encodeURIComponent(playerId)}`, {
+                        method: "POST"
+                    });
                     const data = await res.json();
                     
                     if (data.redirect) {
