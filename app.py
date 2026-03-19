@@ -10,9 +10,24 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
 
 rooms = {}
 words = [
-    "Pizza", "Kucing", "Mobil", "Laptop", "Buku", "Gitar", "Sepeda", "Kopi",
-    "Matahari", "Bulan", "Bintang", "Hujan", "Angin", "Gunung", "Pantai", "Laut",
-    "Komputer", "HP", "Televisi", "Radio", "Sepatu", "Baju", "Topi", "Kacamata","Jepang","Bali","Kipas"
+    "Pensil", "Pulpen", "Buku", "Kertas", "Meja", "Kursi", "Lemari", "Kasur",
+    "Bantal", "Guling", "Sprei", "Karpet", "Piring", "Gelas", "Sendok", "Garpu",
+    "Pisau", "Panci", "Wajan", "Ember", "Sapu", "Pel", "Lap", "Kain",
+    "Tali", "Benang", "Jarum", "Gunting", "Lem", "Karet", "Plastik", "Kardus",
+    "Tidur", "Duduk", "Berdiri", "Jalan", "Lari", "Lompat", "Makan", "Minum",
+    "Masak", "Goreng", "Rebus", "Bakar", "Cuci", "Setrika", "Sapu", "Pel",
+    "HP", "TV", "Radio", "Laptop", "Komputer", "Tablet", "Charger", "Kabel",
+    "Lampu", "Kipas", "AC", "Kulkas", "Kompor", "Tabung", "Gas",
+    "Spidol", "Kapur", "Penghapus", "Rautan", "Penggaris", "Jangka", "Busur",
+    "Stabilo", "Tinta", "Klip", "Stapler", "Peta", "Amplop",
+    "Bola", "Raket", "Net", "Gawang", "Ring", "Tali", "Jaring", "Bet",
+    "Mobil", "Motor", "Becak", "Delman", "Kereta", "Bus", "Truk", "Pickup",
+    "Baju", "Celana", "Topi", "Sepatu", "Kaos", "Jaket", "Sarung", "Peci",
+    "Kemeja", "Rok", "Daster", "Jilbab", "Kerudung", "Hijab", "Sandal", "Selop",
+    "Nasi", "Roti", "Mie", "Telur", "Tahu", "Tempe", "Ikan", "Daging",
+    "Ayam", "Bebek", "Kambing", "Sapi", "Bakso", "Soto", "Sate", "Gado",
+    "Pecel", "Rawon", "Rendang", "Gulai", "Sop", "Sayur", "Lalap", "Sambal", "Jepang", 
+    "Bali", "Kediri", "Malang", "Wonosobo", "Bawang", "Merah", "Tunjang"
 ]
 
 # ================= UTILITY =================
@@ -24,25 +39,33 @@ def generate_code():
     return code
 
 def calculate_vote_result(room):
-    """Hitung hasil voting dengan sistem yang lebih baik"""
+    """Hitung hasil voting"""
     votes = room.get("votes", {})
+    print(f"=== MENGHITUNG VOTE ===")
+    print(f"Votes: {votes}")
+    print(f"Players sebelum: {[p['name'] for p in room['players'].values()]}")
     
     if not votes:
+        print("Tidak ada vote")
         return {
             "eliminated": "None", 
             "is_impostor": False, 
             "votes": {}, 
             "impostor": room.get("impostor_name", "Unknown"),
-            "message": "Tidak ada voting yang dilakukan"
+            "message": "Tidak ada voting yang dilakukan",
+            "game_continues": True,
+            "eliminated_id": None,
+            "impostor_wins": False
         }
 
-    # Hitung suara per target (berdasarkan target_id)
+    # Hitung suara per target
     vote_count = {}
     for voter_id, target_id in votes.items():
-        # Dapatkan nama target
         if target_id in room["players"]:
             target_name = room["players"][target_id]["name"]
             vote_count[target_name] = vote_count.get(target_name, 0) + 1
+    
+    print(f"Vote count: {vote_count}")
     
     if not vote_count:
         return {
@@ -50,35 +73,90 @@ def calculate_vote_result(room):
             "is_impostor": False, 
             "votes": {}, 
             "impostor": room.get("impostor_name", "Unknown"),
-            "message": "Tidak ada suara valid"
+            "message": "Tidak ada suara valid",
+            "game_continues": True,
+            "eliminated_id": None,
+            "impostor_wins": False
         }
 
     max_votes = max(vote_count.values())
     losers = [p for p, v in vote_count.items() if v == max_votes]
+    print(f"Losers: {losers}, max_votes: {max_votes}")
 
     if len(losers) == 1:
         eliminated = losers[0]
         is_impostor = (eliminated == room.get("impostor_name"))
+        print(f"Eliminated: {eliminated}, is_impostor: {is_impostor}")
+        
+        # Cari ID pemain yang tereliminasi
+        eliminated_id = None
+        for pid, pdata in list(room["players"].items()):
+            if pdata["name"] == eliminated:
+                eliminated_id = pid
+                break
         
         if is_impostor:
             message = f"🎉 {eliminated} adalah IMPOSTOR! Crewmate menang!"
+            game_continues = False
+            impostor_wins = False
+            print("IMPOSTOR tertangkap! Game selesai.")
         else:
-            message = f"😢 {eliminated} adalah CREWMATE. Impostor masih hidup!"
+            message = f"😢 {eliminated} adalah Warga. Impostor masih berkeliaran!"
             
-        return {
+            # HAPUS PEMAIN YANG TERELIMINASI
+            if eliminated_id:
+                print(f"Menghapus pemain: {eliminated} (ID: {eliminated_id})")
+                del room["players"][eliminated_id]
+            
+            # CEK JUMLAH PEMAIN TERSISA
+            remaining = len(room["players"])
+            print(f"Pemain tersisa: {remaining}")
+            
+            if remaining <= 2:
+                # Jika pemain tersisa 2 atau kurang, impostor menang
+                impostor_name = room.get("impostor_name", "Unknown")
+                message = f"🏆 {impostor_name} adalah IMPOSTOR dan menang! Pemain tersisa {remaining}."
+                game_continues = False
+                impostor_wins = True
+                print(f"Impostor MENANG! Sisa pemain: {remaining}")
+            else:
+                game_continues = True
+                impostor_wins = False
+                print(f"Game LANJUT dengan {remaining} pemain")
+                
+                # Update current_clue_giver jika yang tereliminasi adalah pemberi clue
+                if eliminated_id == room.get("current_clue_giver_id"):
+                    if room["players"]:
+                        new_giver_id = list(room["players"].keys())[0]
+                        room["current_clue_giver_id"] = new_giver_id
+                        room["current_clue_giver_name"] = room["players"][new_giver_id]["name"]
+                        print(f"Pemberi clue baru: {room['current_clue_giver_name']}")
+        
+        result = {
             "eliminated": eliminated, 
             "is_impostor": is_impostor, 
             "votes": vote_count, 
             "impostor": room["impostor_name"],
-            "message": message
+            "message": message,
+            "game_continues": game_continues,
+            "eliminated_id": eliminated_id,
+            "impostor_wins": impostor_wins
         }
+        print(f"Result: {result}")
+        return result
+        
     else:
+        # Hasil seri
+        print("Hasil SERI")
         return {
             "eliminated": "None", 
             "is_impostor": False, 
             "votes": vote_count, 
             "impostor": room.get("impostor_name", "Unknown"),
-            "message": "🤝 Hasil seri! Tidak ada yang tereliminasi."
+            "message": "🤝 Hasil seri! Tidak ada yang tereliminasi.",
+            "game_continues": True,
+            "eliminated_id": None,
+            "impostor_wins": False
         }
 
 def cleanup_old_rooms():
@@ -215,8 +293,53 @@ def api_status(code):
     room = rooms[code]
     player_id = session.get('player_id')
     
+    # Validasi player
+    if player_id and player_id not in room["players"]:
+        return jsonify({
+            "error": "player_eliminated",
+            "message": "Anda telah tereliminasi",
+            "redirect": f"/result/{code}"
+        }), 403
+    
     # Update last activity
     room["last_activity"] = datetime.now()
+    
+    # CEK JUMLAH PEMAIN TERSISA
+    remaining_players = len(room["players"])
+    
+    # Jika game sedang berjalan dan pemain tersisa 2
+    if room["game_started"] and remaining_players == 2:
+        # Impostor menang
+        impostor_name = room.get("impostor_name", "Unknown")
+        result = {
+            "eliminated": "None",
+            "is_impostor": True,
+            "impostor": impostor_name,
+            "message": f"🏆 {impostor_name} adalah IMPOSTOR dan menang! Pemain tersisa 2.",
+            "game_continues": False,
+            "impostor_wins": True
+        }
+        
+        room["last_result"] = result
+        room["game_started"] = False
+        
+        # Kembalikan response dengan voting_end
+        response_data = {
+            "players": [{"id": pid, "name": pdata["name"], "is_you": (pid == player_id)} 
+                       for pid, pdata in room["players"].items()],
+            "game_started": False,
+            "clue_time": 0,
+            "voting_time": 0,
+            "current_clue_giver": None,
+            "word_hint": None,
+            "votes_cast": 0,
+            "total_players": remaining_players,
+            "messages": room.get("messages", [])[-10:],
+            "voting_active": False,
+            "voting_end": result,
+            "voters": []
+        }
+        return jsonify(response_data)
     
     # Siapkan data pemain
     players_list = [{
@@ -225,7 +348,89 @@ def api_status(code):
         "is_you": (pid == player_id)
     } for pid, data in room["players"].items()]
     
-    # Timer logic - HAPUS auto voting, hanya countdown
+    # PROSES COUNTDOWN
+    if room["game_started"] and room["clue_time"] > 0:
+        room["clue_time"] -= 1
+    
+    # PROSES VOTING SELESAI
+    if room["voting_time"] > 0:
+        room["voting_time"] -= 1
+        if room["voting_time"] == 0:
+            # Voting selesai, hitung hasil
+            print(f"Voting selesai di room {code}")
+            result = calculate_vote_result(room)
+            print(f"Hasil: {result}")
+            
+            room["last_result"] = result
+            
+            # Update players_list setelah penghapusan
+            players_list = [{
+                "id": pid,
+                "name": data["name"],
+                "is_you": (pid == player_id)
+            } for pid, data in room["players"].items()]
+            
+            # CEK apakah game lanjut atau selesai
+            if result["game_continues"]:
+                # Game LANJUT dengan ronde baru
+                print("Game LANJUT ke ronde berikutnya")
+                room["game_started"] = True
+                room["clue_time"] = 20
+                room["voting_time"] = 0
+                room["votes"] = {}
+                room["voters"] = set()
+                
+                # Pilih pemberi clue baru
+                if room["players"]:
+                    new_giver_id = random.choice(list(room["players"].keys()))
+                    room["current_clue_giver_id"] = new_giver_id
+                    room["current_clue_giver_name"] = room["players"][new_giver_id]["name"]
+                
+                response_data = {
+                    "players": players_list,
+                    "game_started": True,
+                    "clue_time": 20,
+                    "voting_time": 0,
+                    "current_clue_giver": room.get("current_clue_giver_name"),
+                    "word_hint": None,
+                    "votes_cast": 0,
+                    "total_players": len(room["players"]),
+                    "messages": room.get("messages", [])[-10:],
+                    "voting_active": False,
+                    "round_result": result,  # KIRIM ROUND RESULT
+                    "voters": []
+                }
+            else:
+                # Game SELESAI
+                print("Game SELESAI")
+                room["game_started"] = False
+                response_data = {
+                    "players": players_list,
+                    "game_started": False,
+                    "clue_time": 0,
+                    "voting_time": 0,
+                    "current_clue_giver": None,
+                    "word_hint": None,
+                    "votes_cast": 0,
+                    "total_players": len(room["players"]),
+                    "messages": room.get("messages", [])[-10:],
+                    "voting_active": False,
+                    "voting_end": result,  # KIRIM VOTING END
+                    "voters": []
+                }
+            
+            # Role info untuk response ini
+            if room["game_started"]:
+                if player_id == room.get("impostor_id"):
+                    response_data["your_role"] = "IMPOSTOR"
+                    response_data["word_hint"] = "Kamu adalah IMPOSTOR!"
+                else:
+                    response_data["your_role"] = "CREWMATE"
+                    response_data["word_hint"] = f"Kata rahasia: {room['word']}"
+            
+            return jsonify(response_data)
+    
+    # RESPONSE DEFAULT (tidak ada voting selesai)
     response_data = {
         "players": players_list,
         "game_started": room["game_started"],
@@ -236,7 +441,138 @@ def api_status(code):
         "votes_cast": len(room.get("voters", set())),
         "total_players": len(room["players"]),
         "messages": room.get("messages", [])[-10:],
-        "voting_active": room["voting_time"] > 0  # Tambah flag voting aktif
+        "voting_active": room["voting_time"] > 0,
+        "voters": list(room.get("voters", set()))
+    }
+    
+    # Role info
+    if room["game_started"]:
+        if player_id == room.get("impostor_id"):
+            response_data["your_role"] = "IMPOSTOR"
+            response_data["word_hint"] = "Kamu adalah IMPOSTOR!"
+        else:
+            response_data["your_role"] = "CREWMATE"
+            response_data["word_hint"] = f"Kata rahasia: {room['word']}"
+    
+    return jsonify(response_data)
+    
+    # Response default
+    response_data = {
+        "players": players_list,
+        "game_started": room["game_started"],
+        "clue_time": room["clue_time"],
+        "voting_time": room["voting_time"],
+        "current_clue_giver": room.get("current_clue_giver_name"),
+        "word_hint": None,
+        "votes_cast": len(room.get("voters", set())),
+        "total_players": len(room["players"]),
+        "messages": room.get("messages", [])[-10:],
+        "voting_active": room["voting_time"] > 0,
+        "voters": list(room.get("voters", set()))  # Kirim daftar voters
+    }
+    
+    # Role info
+    if room["game_started"]:
+        if player_id == room.get("impostor_id"):
+            response_data["your_role"] = "IMPOSTOR"
+            response_data["word_hint"] = "Kamu adalah IMPOSTOR!"
+        else:
+            response_data["your_role"] = "CREWMATE"
+            response_data["word_hint"] = f"Kata rahasia: {room['word']}"
+    
+    return jsonify(response_data)
+    
+    # Siapkan data pemain (seperti biasa)
+    players_list = [{
+        "id": pid,
+        "name": data["name"],
+        "is_you": (pid == player_id)
+    } for pid, data in room["players"].items()]
+    
+    # PROSES COUNTDOWN
+    # Countdown clue time
+    if room["game_started"] and room["clue_time"] > 0:
+        room["clue_time"] -= 1
+    
+    # Countdown voting time
+    if room["voting_time"] > 0:
+        room["voting_time"] -= 1
+        if room["voting_time"] == 0:
+            # Voting selesai, hitung hasil
+            result = calculate_vote_result(room)
+            
+            # Simpan hasil
+            room["last_result"] = result
+            
+            # Jika game lanjut, jangan set game_started = False
+            if result["game_continues"]:
+                # Game lanjut dengan fase clue baru
+                room["game_started"] = True
+                room["clue_time"] = 20
+                room["voting_time"] = 0
+                room["votes"] = {}
+                room["voters"] = set()
+                
+                # Update players_list setelah penghapusan
+                players_list = [{
+                    "id": pid,
+                    "name": data["name"],
+                    "is_you": (pid == player_id)
+                } for pid, data in room["players"].items()]
+                
+                # Kirim hasil ke semua pemain, tapi dengan flag khusus
+                response_data = {
+                    "players": players_list,
+                    "game_started": room["game_started"],
+                    "clue_time": room["clue_time"],
+                    "voting_time": room["voting_time"],
+                    "current_clue_giver": room.get("current_clue_giver_name"),
+                    "word_hint": None,
+                    "votes_cast": len(room.get("voters", set())),
+                    "total_players": len(room["players"]),
+                    "messages": room.get("messages", [])[-10:],
+                    "voting_active": room["voting_time"] > 0,
+                    "round_result": result
+                }
+                return jsonify(response_data)
+            else:
+                # Game selesai
+                room["game_started"] = False
+                
+                # Update players_list setelah penghapusan
+                players_list = [{
+                    "id": pid,
+                    "name": data["name"],
+                    "is_you": (pid == player_id)
+                } for pid, data in room["players"].items()]
+                
+                response_data = {
+                    "players": players_list,
+                    "game_started": False,
+                    "clue_time": 0,
+                    "voting_time": 0,
+                    "current_clue_giver": None,
+                    "word_hint": None,
+                    "votes_cast": 0,
+                    "total_players": len(room["players"]),
+                    "messages": room.get("messages", [])[-10:],
+                    "voting_active": False,
+                    "voting_end": result
+                }
+                return jsonify(response_data)
+    
+    # BUAT RESPONSE DATA (default)
+    response_data = {
+        "players": players_list,
+        "game_started": room["game_started"],
+        "clue_time": room["clue_time"],
+        "voting_time": room["voting_time"],
+        "current_clue_giver": room.get("current_clue_giver_name"),
+        "word_hint": None,
+        "votes_cast": len(room.get("voters", set())),
+        "total_players": len(room["players"]),
+        "messages": room.get("messages", [])[-10:],
+        "voting_active": room["voting_time"] > 0
     }
     
     # Role info (hanya untuk player sendiri)
@@ -247,23 +583,6 @@ def api_status(code):
         else:
             response_data["your_role"] = "CREWMATE"
             response_data["word_hint"] = f"Kata rahasia: {room['word']}"
-    
-    # Countdown clue time (jika ada)
-    if room["game_started"] and room["clue_time"] > 0:
-        room["clue_time"] -= 1
-    
-    # Countdown voting time (jika sedang voting)
-    if room["voting_time"] > 0:
-        room["voting_time"] -= 1
-        if room["voting_time"] == 0:
-            # Voting selesai, hitung hasil
-            result = calculate_vote_result(room)
-            response_data["voting_end"] = result
-            room["game_started"] = False
-            room["votes"] = {}
-            room["voters"] = set()
-            room["clue_time"] = 0
-            room["voting_time"] = 0
     
     return jsonify(response_data)
 
@@ -327,9 +646,13 @@ def api_start_voting(code):
     if room["voting_time"] > 0:
         return jsonify({"error": "Voting sudah berlangsung"}), 400
     
+    # Cek apakah masih ada pemain yang bisa vote (minimal 3 pemain)
+    if len(room["players"]) < 3:
+        return jsonify({"error": "Pemain tersisa 2, game akan segera berakhir"}), 400
+    
     # Mulai voting
-    room["voting_time"] = 30  # 60 detik voting
-    room["clue_time"] = 0  # Hentikan fase clue
+    room["voting_time"] = 40
+    room["clue_time"] = 0
     room["votes"] = {}
     room["voters"] = set()
     
@@ -337,6 +660,54 @@ def api_start_voting(code):
         "success": True,
         "message": "Voting dimulai!",
         "voting_time": room["voting_time"]
+    })
+
+@app.route("/api/vote/<code>", methods=["POST"])
+def api_vote(code):
+    if code not in rooms:
+        return jsonify({"error": "Room tidak ditemukan"}), 404
+    
+    room = rooms[code]
+    data = request.json
+    target_name = data.get("target", "").strip()
+    voter_id = session.get('player_id')
+    
+    # Validasi
+    if not voter_id or voter_id not in room["players"]:
+        return jsonify({"error": "Anda tidak terdaftar di room ini"}), 400
+    
+    if not room["game_started"]:
+        return jsonify({"error": "Game belum dimulai"}), 400
+    
+    if room["voting_time"] <= 0:
+        return jsonify({"error": "Fase voting sudah berakhir"}), 400
+    
+    if voter_id in room.get("voters", set()):
+        return jsonify({"error": "Anda sudah melakukan vote"}), 400
+    
+    # Cari target berdasarkan nama (case insensitive)
+    target_id = None
+    for pid, pdata in room["players"].items():
+        if pdata["name"].lower() == target_name.lower():
+            target_id = pid
+            break
+    
+    if not target_id:
+        return jsonify({"error": "Target tidak ditemukan"}), 400
+    
+    if target_id == voter_id:
+        return jsonify({"error": "Tidak bisa vote diri sendiri"}), 400
+    
+    # Catat vote
+    room["votes"][voter_id] = target_id
+    room["voters"] = room.get("voters", set())
+    room["voters"].add(voter_id)
+    
+    return jsonify({
+        "success": True,
+        "message": f"Vote untuk {target_name} tercatat!",
+        "votes_cast": len(room["voters"]),
+        "total_players": len(room["players"])
     })
 
 @app.route("/api/chat/<code>", methods=["POST"])
@@ -382,6 +753,7 @@ def result(code):
     is_impostor = request.args.get("is_impostor", "false") == "true"
     impostor = request.args.get("impostor", "Unknown")
     message = request.args.get("message", "")
+    impostor_wins = request.args.get("impostor_wins", "false") == "true"
     
     room = rooms[code]
     player_id = session.get('player_id')
@@ -394,6 +766,17 @@ def result(code):
         player_name = room["players"][player_id]["name"]
         is_host = (player_id == room["host_id"])
     
+    # Jika impostor menang dan ini adalah result terakhir, hapus room setelah dibaca
+    if impostor_wins and code in rooms:
+        # Hapus room setelah 10 detik (kasih waktu client baca)
+        import threading
+        def delete_room():
+            import time
+            time.sleep(10)
+            if code in rooms:
+                del rooms[code]
+        threading.Thread(target=delete_room).start()
+    
     return render_template(
         "result.html", 
         code=code, 
@@ -402,7 +785,8 @@ def result(code):
         impostor=impostor,
         message=message,
         player_name=player_name,
-        is_host=is_host
+        is_host=is_host,
+        impostor_wins=impostor_wins
     )
 
 @app.route("/api/restart/<code>", methods=["POST"])

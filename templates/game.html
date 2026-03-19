@@ -14,7 +14,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg,  #03c8ff 0%, #0858ec 100%);
             min-height: 100vh;
             color: #333;
             padding: 10px;
@@ -277,6 +277,200 @@
             font-size: 16px;
         }
 
+        .voting-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        /* Toast Notification */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            width: 90%;
+            max-width: 350px;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: white;
+            border-radius: 50px;
+            padding: 12px 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideDown 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+            pointer-events: auto;
+        }
+
+        .toast.success {
+            border-left-color: #10b981;
+        }
+
+        .toast.error {
+            border-left-color: #ef4444;
+        }
+
+        .toast.warning {
+            border-left-color: #f59e0b;
+        }
+
+        .toast.info {
+            border-left-color: #3b82f6;
+        }
+
+        .toast-icon {
+            font-size: 20px;
+            min-width: 24px;
+            text-align: center;
+        }
+
+        .toast-content {
+            flex: 1;
+            font-size: 14px;
+            color: #333;
+            word-break: break-word;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #999;
+            padding: 0 5px;
+            min-height: auto;
+            width: auto;
+            line-height: 1;
+        }
+
+        .toast-close:hover {
+            color: #666;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+        }
+
+        /* Mobile adjustments for toast */
+        @media (max-width: 480px) {
+            .toast {
+                padding: 10px 15px;
+            }
+            
+            .toast-content {
+                font-size: 13px;
+            }
+        }
+
+        /* Custom Confirmation Dialog */
+.confirm-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    animation: fadeIn 0.2s ease;
+}
+
+.confirm-dialog {
+    background: white;
+    border-radius: 20px;
+    padding: 25px;
+    max-width: 90%;
+    width: 350px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: slideUp 0.3s ease;
+}
+
+.confirm-dialog h3 {
+    font-size: 20px;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.confirm-dialog p {
+    color: #666;
+    margin-bottom: 20px;
+    font-size: 16px;
+}
+
+.confirm-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.confirm-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 80px;
+}
+
+.confirm-btn.cancel {
+    background: #f1f3f4;
+    color: #666;
+}
+
+.confirm-btn.confirm {
+    background: #ff6b6b;
+    color: white;
+}
+
+.confirm-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
         .btn {
             padding: 12px 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -316,8 +510,16 @@
             background: #ff6b6b;
         }
 
+        .btn-danger:hover:not(:disabled) {
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+
         .btn-secondary {
             background: #ff9800;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            box-shadow: 0 5px 15px rgba(255, 152, 0, 0.4);
         }
 
         .btn-container {
@@ -403,6 +605,11 @@
             font-size: 16px;
         }
 
+        .chat-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
         .voting-progress {
             margin-top: 15px;
             font-size: 14px;
@@ -453,6 +660,9 @@
     </style>
 </head>
 <body>
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
     <div class="container">
         <div class="main-card">
             <div class="room-header">
@@ -509,360 +719,534 @@
     </div>
 
     <script>
-        const playerName = "{{ name }}";
-        const playerId = "{{ player_id }}";
-        const roomCode = "{{ code }}";
-        const isHost = "{{ is_host }}" === "True";
+    // ==================== DATA DARI SERVER ====================
+    const playerName = "{{ name }}";
+    const playerId = "{{ player_id }}";
+    const roomCode = "{{ code }}";
+    const isHost = "{{ is_host }}" === "True";
+    
+    // ==================== VARIABEL GLOBAL ====================
+    let hasVoted = false;
+    let currentRole = null;
+    let currentWord = null;
+    let pollInterval = 1000; // polling setiap 1 detik
+    
+    // ==================== TOAST NOTIFICATION ====================
+    function showToast(message, type = 'success', duration = 3000) {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
         
-        let hasVoted = false;
-        let currentRole = null;
-        let currentWord = null;
-        let pollInterval = 1000;
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        let icon = '✅';
+        if (type === 'error') icon = '❌';
+        if (type === 'warning') icon = '⚠️';
+        if (type === 'info') icon = 'ℹ️';
+        
+        toast.innerHTML = `
+            <div class="toast-icon">${icon}</div>
+            <div class="toast-content">${message}</div>
+            <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+        `;
+        
+        container.appendChild(toast);
+        
+        setTimeout(() => {
+            if (toast.parentElement) toast.remove();
+        }, duration);
+        
+        toast.addEventListener('click', (e) => {
+            if (e.target.classList.contains('toast-close')) return;
+            toast.remove();
+        });
+    }
 
-        // Copy room code
-        function copyRoomCode() {
-            navigator.clipboard.writeText(roomCode).then(() => {
-                showToast('✅ Kode room berhasil disalin!');
-            }).catch(() => {
-                alert('Kode room: ' + roomCode);
-            });
-        }
-
-        // Show toast message (mobile friendly)
-        function showToast(message) {
-            // Simple alert for now, bisa ditingkatkan dengan custom toast
-            alert(message);
-        }
-
-        // Poll status with adaptive interval
-        async function pollStatus() {
-            try {
-                const res = await fetch(`/api/status/${roomCode}`);
-                const data = await res.json();
-                
-                if(data.error) {
-                    console.warn(data.error);
-                    return;
-                }
-
-                updatePlayersList(data.players);
-                updateTimer(data);
-                
-                if (data.your_role) {
-                    currentRole = data.your_role;
-                    currentWord = data.word_hint;
-                    updateRoleInfo(data.your_role, data.word_hint);
-                }
-                
-                updateVotingSection(data);
-                updateChat(data.messages);
-                
-                if (data.voting_end) {
-                    const end = data.voting_end;
-                    let url = `/result/${roomCode}?eliminated=${end.eliminated || 'None'}`;
-                    url += `&is_impostor=${end.is_impostor}`;
-                    url += `&impostor=${end.impostor}`;
-                    url += `&message=${encodeURIComponent(end.message || '')}`;
-                    window.location.href = url;
-                }
-                
-                // Adjust poll interval based on activity
-                pollInterval = data.voting_time > 0 ? 500 : 1000;
-                
-            } catch(err) {
-                console.error('Poll error:', err);
+    // ==================== FUNGSI-FUNGSI UTAMA ====================
+    
+    // Copy room code
+    function copyRoomCode() {
+        navigator.clipboard.writeText(roomCode).then(() => {
+            showToast('Kode room berhasil disalin!', 'success');
+        }).catch(() => {
+            const textarea = document.createElement('textarea');
+            textarea.value = roomCode;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showToast('Kode room berhasil disalin!', 'success');
+        });
+    }
+    
+    // Poll status
+async function pollStatus() {
+    try {
+        const res = await fetch(`/api/status/${roomCode}`);
+        
+        // Cek status code
+        if (res.status === 403) {
+            const data = await res.json();
+            if (data.error === "player_eliminated") {
+                showToast('Anda telah tereliminasi!', 'warning', 1500);
+                setTimeout(() => {
+                    window.location.href = data.redirect || `/result/${roomCode}`;
+                }, 1500);
             }
-
-            setTimeout(pollStatus, pollInterval);
+            return;
+        }
+        
+        const data = await res.json();
+        
+        if(data.error) {
+            console.warn('Room error:', data.error);
+            showToast('Room tidak ditemukan', 'error', 2000);
+            setTimeout(() => {
+                window.location.href = '/join';
+            }, 2000);
+            return;
         }
 
-        // Update players list
-        function updatePlayersList(players) {
-            const list = document.getElementById("players-list");
-            const countSpan = document.getElementById("playerCount");
-            
-            list.innerHTML = "";
-            countSpan.textContent = players.length;
-            
-            players.forEach(p => {
-                const card = document.createElement("div");
-                card.className = "player-card";
-                
-                if (p.is_you) card.classList.add("you");
-                
-                card.innerHTML = `
-                    <div class="player-name">${escapeHtml(p.name)}</div>
-                    <div>
-                        ${p.is_you ? '<span class="player-badge badge-you">Kamu</span>' : ''}
-                    </div>
-                `;
-                
-                list.appendChild(card);
-            });
-
-            // Update datalist for voting
-            const datalist = document.getElementById("players");
-            datalist.innerHTML = "";
-            players.forEach(p => {
-                if (!p.is_you) {
-                    const option = document.createElement("option");
-                    option.value = p.name;
-                    datalist.appendChild(option);
-                }
-            });
+        // CEK APAKAH PLAYER MASIH ADA
+        const playerStillInRoom = data.players.some(p => p.id === playerId);
+        if (!playerStillInRoom) {
+            console.warn('Player tidak ditemukan di room');
+            showToast('Anda telah tereliminasi', 'warning', 1500);
+            setTimeout(() => {
+                window.location.href = `/result/${roomCode}`;
+            }, 1500);
+            return;
         }
 
-        // Update timer
-        function updateTimer(data) {
-            const timerLabel = document.getElementById("timerLabel");
-            const timerDisplay = document.getElementById("timerDisplay");
-            const startVotingBtn = document.getElementById("startVotingBtn");
-            
-            if (data.clue_time > 0) {
-                timerLabel.textContent = `🔍 Fase Clue (${data.current_clue_giver || 'someone'})`;
-                timerDisplay.textContent = data.clue_time;
-                timerDisplay.classList.remove("warning");
-                
-                if (isHost && startVotingBtn) {
-                    startVotingBtn.style.display = "none";
-                }
-            } else if (data.voting_time > 0) {
-                timerLabel.textContent = "🗳️ Fase Voting";
-                timerDisplay.textContent = data.voting_time;
-                timerDisplay.classList.add("warning");
-                
-                if (startVotingBtn) {
-                    startVotingBtn.style.display = "none";
-                }
-            } else {
-                if (data.game_started) {
-                    timerLabel.textContent = "⏳ Host akan memulai voting...";
-                    timerDisplay.textContent = "0";
-                    
-                    if (isHost && startVotingBtn) {
-                        startVotingBtn.style.display = "block";
-                    }
-                } else {
-                    timerLabel.textContent = "Menunggu game dimulai...";
-                    timerDisplay.textContent = "0";
-                    
-                    if (startVotingBtn) {
-                        startVotingBtn.style.display = "none";
-                    }
-                }
-                timerDisplay.classList.remove("warning");
-            }
+        updatePlayersList(data.players);
+        updateTimer(data);
+        
+        if (data.your_role) {
+            currentRole = data.your_role;
+            currentWord = data.word_hint;
+            updateRoleInfo(data.your_role, data.word_hint);
         }
-
-        // Update role info
-        function updateRoleInfo(role, hint) {
-            const roleInfo = document.getElementById("roleInfo");
-            roleInfo.classList.remove("hidden");
+        
+        updateVotingSection(data);
+        updateChat(data.messages);
+        
+        // CEK ROUND RESULT (voting selesai, game lanjut)
+        if (data.round_result) {
+            console.log('Round result:', data.round_result);
+            const result = data.round_result;
             
-            if (role === "IMPOSTOR") {
-                roleInfo.className = "role-info role-impostor";
-                roleInfo.innerHTML = "🕵️ Kamu adalah <strong>IMPOSTOR</strong>!";
-            } else {
-                roleInfo.className = "role-info role-crewmate";
-                roleInfo.innerHTML = `👨‍🚀 Kamu <strong>CREWMATE</strong><br>Kata: <strong>${hint}</strong>`;
-            }
-        }
-
-        // Update voting section
-        function updateVotingSection(data) {
-            const votingSection = document.getElementById("votingSection");
-            const voteProgress = document.getElementById("voteProgress");
+            // Reset state untuk ronde baru
+            hasVoted = false;
+            
+            // Reset tombol vote
             const voteBtn = document.getElementById("voteBtn");
+            if (voteBtn) {
+                voteBtn.disabled = false;
+                voteBtn.textContent = "🗳️ Vote";
+            }
             
-            if (data.voting_time > 0) {
-                votingSection.classList.remove("hidden");
-                voteProgress.textContent = `Suara: ${data.votes_cast}/${data.total_players}`;
-                
-                if (hasVoted) {
-                    voteBtn.disabled = true;
-                    voteBtn.textContent = "✓ Sudah Vote";
-                } else {
-                    voteBtn.disabled = false;
-                    voteBtn.textContent = "🗳️ Vote";
-                }
-            } else {
-                votingSection.classList.add("hidden");
+            // Tampilkan notifikasi
+            showToast(result.message, result.is_impostor ? 'success' : 'warning', 5000);
+            
+            // Update daftar pemain dan role
+            if (data.players) {
+                updatePlayersList(data.players);
+            }
+            if (data.your_role) {
+                updateRoleInfo(data.your_role, data.word_hint);
             }
         }
+        
+        // CEK VOTING END (game selesai)
+        if (data.voting_end) {
+            console.log('Voting end:', data.voting_end);
+            const end = data.voting_end;
+            let url = `/result/${roomCode}?eliminated=${end.eliminated || 'None'}`;
+            url += `&is_impostor=${end.is_impostor}`;
+            url += `&impostor=${end.impostor}`;
+            url += `&message=${encodeURIComponent(end.message || '')}`;
+            url += `&impostor_wins=${end.impostor_wins || false}`;
+            
+            setTimeout(() => {
+                window.location.href = url;
+            }, 2000);
+        }
+        
+    } catch(err) {
+        console.error('Poll error:', err);
+    }
 
-        // Update chat
-        function updateChat(messages) {
-            if (!messages) return;
+    setTimeout(pollStatus, pollInterval);
+}
+
+    // Update timer (SEDERHANA, LANGSUNG DARI SERVER)
+    function updateTimer(data) {
+        const timerLabel = document.getElementById("timerLabel");
+        const timerDisplay = document.getElementById("timerDisplay");
+        const startVotingBtn = document.getElementById("startVotingBtn");
+        
+        if (data.clue_time > 0) {
+            timerLabel.textContent = `🔍 Fase Clue (${data.current_clue_giver || 'Pemberi Clue'})`;
+            timerDisplay.textContent = data.clue_time;
+            timerDisplay.classList.remove("warning");
             
-            const chatBox = document.getElementById("chatMessages");
-            chatBox.innerHTML = "";
+            if (isHost && startVotingBtn) {
+                startVotingBtn.style.display = "none";
+            }
+        } 
+        else if (data.voting_time > 0) {
+            timerLabel.textContent = "🗳️ Fase Voting";
+            timerDisplay.textContent = data.voting_time;
             
-            messages.forEach(msg => {
-                const div = document.createElement("div");
-                div.className = "chat-message";
-                div.innerHTML = `
-                    <span class="chat-name">${escapeHtml(msg.name)}:</span>
-                    <span class="chat-time">${msg.time}</span>
-                    <div>${escapeHtml(msg.message)}</div>
-                `;
-                chatBox.appendChild(div);
+            // Warning kalau < 10 detik
+            if (data.voting_time <= 10) {
+                timerDisplay.classList.add("warning");
+            } else {
+                timerDisplay.classList.remove("warning");
+            }
+            
+            if (startVotingBtn) {
+                startVotingBtn.style.display = "none";
+            }
+        } 
+        else if (!data.game_started) {
+            timerDisplay.textContent = "0";
+            timerDisplay.classList.remove("warning");
+            timerLabel.textContent = "Menunggu game dimulai...";
+            
+            if (startVotingBtn) {
+                startVotingBtn.style.display = "none";
+            }
+        }
+        else if (data.game_started && data.clue_time === 0 && data.voting_time === 0) {
+            timerLabel.textContent = "⏳ Host akan memulai voting...";
+            timerDisplay.textContent = "0";
+            timerDisplay.classList.remove("warning");
+            
+            if (isHost && startVotingBtn) {
+                startVotingBtn.style.display = "block";
+            }
+        }
+    }
+
+    // Update players list
+    function updatePlayersList(players) {
+        const list = document.getElementById("players-list");
+        const countSpan = document.getElementById("playerCount");
+        
+        list.innerHTML = "";
+        countSpan.textContent = players.length;
+        
+        players.forEach(p => {
+            const card = document.createElement("div");
+            card.className = "player-card";
+            if (p.is_you) card.classList.add("you");
+            
+            card.innerHTML = `
+                <div class="player-name">${escapeHtml(p.name)}</div>
+                <div>
+                    ${p.is_you ? '<span class="player-badge badge-you">Kamu</span>' : ''}
+                </div>
+            `;
+            list.appendChild(card);
+        });
+
+        const datalist = document.getElementById("players");
+        datalist.innerHTML = "";
+        players.forEach(p => {
+            if (!p.is_you) {
+                const option = document.createElement("option");
+                option.value = p.name;
+                datalist.appendChild(option);
+            }
+        });
+    }
+
+    // Update role info
+    function updateRoleInfo(role, hint) {
+        const roleInfo = document.getElementById("roleInfo");
+        roleInfo.classList.remove("hidden");
+        
+        if (role === "IMPOSTOR") {
+            roleInfo.className = "role-info role-impostor";
+            roleInfo.innerHTML = "☠️ Kamu adalah <strong>Penjahat</strong>!";
+        } else {
+            roleInfo.className = "role-info role-crewmate";
+            roleInfo.innerHTML = `🧑🏽 Kamu <strong>Warga</strong><br><strong>${hint}</strong>`;
+        }
+    }
+
+    // Update voting section
+function updateVotingSection(data) {
+    const votingSection = document.getElementById("votingSection");
+    const voteProgress = document.getElementById("voteProgress");
+    const voteBtn = document.getElementById("voteBtn");
+    
+    if (data.voting_time > 0) {
+        votingSection.classList.remove("hidden");
+        voteProgress.textContent = `Suara: ${data.votes_cast}/${data.total_players}`;
+        
+        // CEK APAKAH PLAYER SUDAH VOTE (dari data server)
+        const playerHasVoted = data.voters && data.voters.includes(playerId);
+        
+        if (playerHasVoted) {
+            voteBtn.disabled = true;
+            voteBtn.textContent = "✓ Sudah Vote";
+            hasVoted = true; // sinkronkan variabel lokal
+        } else {
+            voteBtn.disabled = false;
+            voteBtn.textContent = "🗳️ Vote";
+            hasVoted = false; // reset jika belum vote
+        }
+    } else {
+        votingSection.classList.add("hidden");
+    }
+}
+
+    // Update chat
+    function updateChat(messages) {
+        if (!messages) return;
+        
+        const chatBox = document.getElementById("chatMessages");
+        chatBox.innerHTML = "";
+        
+        messages.forEach(msg => {
+            const div = document.createElement("div");
+            div.className = "chat-message";
+            div.innerHTML = `
+                <span class="chat-name">${escapeHtml(msg.name)}:</span>
+                <span class="chat-time">${msg.time}</span>
+                <div>${escapeHtml(msg.message)}</div>
+            `;
+            chatBox.appendChild(div);
+        });
+        
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // Escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Start game
+    async function startGame() {
+        if (!isHost) return;
+        
+        try {
+            const res = await fetch(`/api/start/${roomCode}`, {method: "POST"});
+            const data = await res.json();
+            
+            if (data.error) {
+                showToast(data.error, 'error');
+                return;
+            }
+            
+            document.getElementById("startGameBtn").style.display = "none";
+            showToast("🎮 Game dimulai! Fase clue 20 detik.", 'success');
+            
+        } catch(err) {
+            showToast("Gagal memulai game", 'error');
+        }
+    }
+
+    // Start voting
+    async function startVoting() {
+        if (!isHost) return;
+        
+        try {
+            const res = await fetch(`/api/start-voting/${roomCode}`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"}
+            });
+            const data = await res.json();
+            
+            if (data.error) {
+                showToast(data.error, 'error');
+                return;
+            }
+            
+            document.getElementById("startVotingBtn").style.display = "none";
+            showToast("🗳️ Voting dimulai! Silakan vote.", 'success');
+            
+        } catch(err) {
+            showToast("Gagal memulai voting", 'error');
+        }
+    }
+
+    // Cast vote
+async function castVote() {
+    // Cek apakah player masih ada di room (tambahan)
+    try {
+        const checkRes = await fetch(`/api/status/${roomCode}`);
+        const checkData = await checkRes.json();
+        
+        if (checkData.error || !checkData.players.some(p => p.id === playerId)) {
+            showToast('Anda sudah tidak berada di room', 'warning', 1500);
+            setTimeout(() => {
+                window.location.href = '/join';
+            }, 1500);
+            return;
+        }
+    } catch(err) {
+        console.error('Check error:', err);
+    }
+    
+    if (hasVoted) {
+        showToast("Kamu sudah melakukan vote!", 'warning');
+        return;
+    }
+        
+        const target = document.getElementById("voteTarget").value.trim();
+        if (!target) {
+            showToast("Masukkan nama pemain!", 'warning');
+            return;
+        }
+        
+        if (target.toLowerCase() === playerName.toLowerCase()) {
+            showToast("Tidak bisa vote diri sendiri!", 'warning');
+            return;
+        }
+        
+        try {
+            const res = await fetch(`/api/vote/${roomCode}`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({target: target})
             });
             
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
-
-        // Escape HTML
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        // Start game
-        async function startGame() {
-            if (!isHost) return;
+            const data = await res.json();
             
-            try {
-                const res = await fetch(`/api/start/${roomCode}`, {method: "POST"});
-                const data = await res.json();
-                
-                if (data.error) {
-                    alert(data.error);
-                    return;
-                }
-                
-                document.getElementById("startGameBtn").style.display = "none";
-                showToast("Game dimulai! Fase clue 20 detik.");
-                
-            } catch(err) {
-                alert("Gagal memulai game");
-            }
-        }
-
-        // Start voting
-        async function startVoting() {
-            if (!isHost) return;
-            
-            try {
-                const res = await fetch(`/api/start-voting/${roomCode}`, {
-                    method: "POST",
-                    headers: {"Content-Type": "application/json"}
-                });
-                const data = await res.json();
-                
-                if (data.error) {
-                    alert(data.error);
-                    return;
-                }
-                
-                document.getElementById("startVotingBtn").style.display = "none";
-                showToast("🗳️ Voting dimulai!");
-                
-            } catch(err) {
-                alert("Gagal memulai voting");
-            }
-        }
-
-        // Cast vote
-        async function castVote() {
-            if (hasVoted) {
-                alert("Kamu sudah vote!");
+            if (data.error) {
+                showToast(data.error, 'error');
                 return;
             }
             
-            const target = document.getElementById("voteTarget").value.trim();
-            if (!target) {
-                alert("Masukkan nama pemain!");
-                return;
-            }
+            hasVoted = true;
+            document.getElementById("voteBtn").disabled = true;
+            document.getElementById("voteBtn").textContent = "✓ Sudah Vote";
+            document.getElementById("voteTarget").value = "";
+            showToast("🗳️ Vote tercatat!", 'success');
             
-            if (target.toLowerCase() === playerName.toLowerCase()) {
-                alert("Tidak bisa vote diri sendiri!");
-                return;
-            }
-            
-            try {
-                const res = await fetch(`/api/vote/${roomCode}`, {
-                    method: "POST",
-                    headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({target: target})
-                });
-                
-                const data = await res.json();
-                
-                if (data.error) {
-                    alert(data.error);
-                    return;
-                }
-                
-                hasVoted = true;
-                document.getElementById("voteBtn").disabled = true;
-                document.getElementById("voteBtn").textContent = "✓ Sudah Vote";
-                document.getElementById("voteTarget").value = "";
-                showToast("Vote tercatat!");
-                
-            } catch(err) {
-                alert("Gagal vote");
-            }
+        } catch(err) {
+            showToast("Gagal melakukan vote", 'error');
         }
+    }
 
-        // Send chat
-        async function sendChat() {
-            const input = document.getElementById("chatInput");
-            const message = input.value.trim();
+    // Send chat
+    async function sendChat() {
+        const input = document.getElementById("chatInput");
+        const message = input.value.trim();
+        
+        if (!message) return;
+        
+        try {
+            const res = await fetch(`/api/chat/${roomCode}`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({message})
+            });
             
-            if (!message) return;
+            const data = await res.json();
             
-            try {
-                const res = await fetch(`/api/chat/${roomCode}`, {
-                    method: "POST",
-                    headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({message})
-                });
-                
-                const data = await res.json();
-                
-                if (data.success) {
-                    input.value = "";
-                }
-                
-            } catch(err) {
-                console.error("Chat error:", err);
+            if (data.success) {
+                input.value = "";
+            } else {
+                showToast(data.error, 'error');
             }
-        }
-
-        // Leave room
-        async function leaveRoom() {
-            if (!confirm("Yakin keluar dari room?")) return;
             
-            try {
-                const res = await fetch(`/api/leave/${roomCode}`, {method: "POST"});
-                const data = await res.json();
-                
-                if (data.redirect) {
-                    window.location.href = data.redirect;
-                }
-                
-            } catch(err) {
-                alert("Gagal keluar");
-            }
+        } catch(err) {
+            showToast("Gagal mengirim chat", 'error');
         }
+    }
 
-        // Event listeners
-        document.getElementById("chatInput")?.addEventListener("keypress", function(e) {
-            if (e.key === "Enter") {
-                sendChat();
+    // Custom confirm dialog
+    function showConfirm(message, title = 'Konfirmasi', onConfirm, onCancel) {
+        const existingOverlay = document.querySelector('.confirm-overlay');
+        if (existingOverlay) existingOverlay.remove();
+        
+        const overlay = document.createElement('div');
+        overlay.className = 'confirm-overlay';
+        
+        const dialog = document.createElement('div');
+        dialog.className = 'confirm-dialog';
+        
+        dialog.innerHTML = `
+            <h3>${title}</h3>
+            <p>${message}</p>
+            <div class="confirm-buttons">
+                <button class="confirm-btn cancel">Batal</button>
+                <button class="confirm-btn confirm">Ya, Keluar</button>
+            </div>
+        `;
+        
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        
+        const cancelBtn = dialog.querySelector('.cancel');
+        const confirmBtn = dialog.querySelector('.confirm');
+        
+        cancelBtn.addEventListener('click', () => {
+            overlay.remove();
+            if (onCancel) onCancel();
+        });
+        
+        confirmBtn.addEventListener('click', () => {
+            overlay.remove();
+            if (onConfirm) onConfirm();
+        });
+        
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                overlay.remove();
+                if (onCancel) onCancel();
             }
         });
+    }
 
-        document.getElementById("voteTarget")?.addEventListener("keypress", function(e) {
-            if (e.key === "Enter") {
-                castVote();
+    // Leave room
+    async function leaveRoom() {
+        showConfirm(
+            'Apakah Anda yakin ingin keluar dari room?',
+            '🚪 Keluar Room',
+            async () => {
+                try {
+                    const res = await fetch(`/api/leave/${roomCode}`, {method: "POST"});
+                    const data = await res.json();
+                    
+                    if (data.redirect) {
+                        showToast("👋 Berhasil keluar dari room", 'success');
+                        setTimeout(() => {
+                            window.location.href = data.redirect;
+                        }, 1500);
+                    } else if (data.error) {
+                        showToast(data.error, 'error');
+                    }
+                    
+                } catch(err) {
+                    showToast("❌ Gagal keluar dari room", 'error');
+                    console.error(err);
+                }
+            },
+            () => {
+                showToast("Tetap di room", 'info', 1500);
             }
-        });
+        );
+    }
 
-        // Start polling
-        pollStatus();
-    </script>
+    // ==================== EVENT LISTENERS ====================
+    document.getElementById("chatInput")?.addEventListener("keypress", function(e) {
+        if (e.key === "Enter") sendChat();
+    });
+
+    document.getElementById("voteTarget")?.addEventListener("keypress", function(e) {
+        if (e.key === "Enter") castVote();
+    });
+
+    // ==================== START POLLING ====================
+    pollStatus();
+</script>
 </body>
 </html>

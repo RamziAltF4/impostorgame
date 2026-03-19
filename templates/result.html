@@ -13,7 +13,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg,  #03c8ff 0%, #0858ec 100%);
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -133,6 +133,8 @@
             flex-wrap: wrap;
             justify-content: center;
             gap: 10px;
+
+            
         }
     </style>
 </head>
@@ -157,60 +159,93 @@
             {% else %}
                 <div class="result-message {% if is_impostor %}impostor-win{% else %}crewmate-win{% endif %}">
                     {% if is_impostor %}
-                        🔪 {{ eliminated }} adalah IMPOSTOR!<br>
-                        <small>Impostor berhasil diungkap!</small>
+                        🔪 {{ eliminated }} adalah Penjahat!<br>
+                        <small>Penjahat berhasil diungkap!</small>
                     {% else %}
-                        😢 {{ eliminated }} adalah CREWMATE<br>
-                        <small>Impostor masih berkeliaran!</small>
+                        😢 {{ eliminated }} adalah Warga<br>
+                        <small>Penjahat masih berkeliaran!</small>
                     {% endif %}
                 </div>
             {% endif %}
 
-            <div class="info-box">
-                <div class="info-item">
-                    <span class="info-label">🎲 Kode Room:</span>
-                    <span class="info-value">{{ code }}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">🕵️ Impostor:</span>
-                    <span class="info-value">{{ impostor }}</span>
-                </div>
-                {% if eliminated != 'None' %}
-                <div class="info-item">
-                    <span class="info-label">❌ Tereliminasi:</span>
-                    <span class="info-value">{{ eliminated }}</span>
-                </div>
-                {% endif %}
-                {% if message %}
-                <div class="info-item">
-                    <span class="info-label">📢 Hasil:</span>
-                    <span class="info-value">{{ message }}</span>
-                </div>
-                {% endif %}
-            </div>
-
             <div class="btn-container">
-                <a href="{{ url_for('index') }}">
-                    <button class="btn">🏠 Menu Utama</button>
-                </a>
-                
-                {% if is_host %}
-                <button onclick="restartGame()" class="btn btn-secondary">🔄 Main Lagi</button>
-                {% endif %}
-                
-                <button onclick="copyInvite()" class="btn btn-secondary">📋 Undang Teman</button>
-            </div>
-        </div>
-    </div>
+    <a href="{{ url_for('index') }}">
+        <button class="btn">🏠 Menu Utama</button>
+    </a>
+    
+    {% if eliminated %}
+    <a href="{{ url_for('join') }}">
+        <button class="btn btn-secondary">🔗 Gabung Room Lain</button>
+    </a>
+    {% endif %}
+    
+    <button onclick="copyInvite()" class="btn btn-secondary">📋 Undang Teman</button>
+</div>
 
     <script>
     const roomCode = "{{ code }}";
     const playerName = "{{ player_name }}";
-    const isHost = {% if is_host %}true{% else %}false{% endif %};
+    const isHost = "{{ is_host }}" === "True";
+    const impostorWins = "{{ request.args.get('impostor_wins', 'false') }}" === "true";
 
+    // ==================== CEK AKSES ROOM ====================
+    async function checkRoomAccess() {
+        try {
+            const res = await fetch(`/api/status/${roomCode}`);
+            const data = await res.json();
+            
+            if (data.error) {
+                // Jika error, mungkin session hilang, redirect ke join
+                window.location.href = '/join';
+            }
+        } catch(err) {
+            console.error('Error checking room:', err);
+        }
+    }
+    
+    checkRoomAccess();
+
+    // ==================== TOAST NOTIFICATION ====================
+    function showToast(message, type = 'success', duration = 3000) {
+        // Cek apakah container sudah ada
+        let container = document.getElementById('toastContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toastContainer';
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
+        
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        let icon = '✅';
+        if (type === 'error') icon = '❌';
+        if (type === 'warning') icon = '⚠️';
+        if (type === 'info') icon = 'ℹ️';
+        
+        toast.innerHTML = `
+            <div class="toast-icon">${icon}</div>
+            <div class="toast-content">${message}</div>
+            <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+        `;
+        
+        container.appendChild(toast);
+        
+        setTimeout(() => {
+            if (toast.parentElement) toast.remove();
+        }, duration);
+        
+        toast.addEventListener('click', (e) => {
+            if (e.target.classList.contains('toast-close')) return;
+            toast.remove();
+        });
+    }
+
+    // ==================== RESTART GAME ====================
     async function restartGame() {
         if (!isHost) {
-            alert("Hanya host yang bisa merestart game!");
+            showToast("Hanya host yang bisa merestart game!", 'warning');
             return;
         }
         
@@ -224,21 +259,110 @@
             const data = await res.json();
             
             if (data.success) {
-                window.location.href = `/game/${roomCode}`;
+                showToast("Game akan dimulai ulang...", 'success');
+                setTimeout(() => {
+                    window.location.href = `/game/${roomCode}`;
+                }, 1500);
             } else {
-                alert(data.error || "Gagal merestart game");
+                showToast(data.error || "Gagal merestart game", 'error');
             }
         } catch(err) {
-            alert("Gagal merestart game: " + err.message);
+            showToast("Gagal merestart game: " + err.message, 'error');
         }
     }
 
+    // ==================== COPY UNDANGAN ====================
     function copyInvite() {
         const text = `🎮 Ayo main Impostor Game!\n\n📋 Kode Room: ${roomCode}\n🔗 Link: ${window.location.origin}/join\n\nAjak teman-temanmu bermain!`;
         navigator.clipboard.writeText(text).then(() => {
-            alert('✅ Undangan berhasil disalin!');
+            showToast('✅ Undangan berhasil disalin!', 'success');
         }).catch(() => {
-            alert('❌ Gagal menyalin. Silakan copy manual.');
+            // Fallback
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showToast('✅ Undangan berhasil disalin!', 'success');
+        });
+    }
+
+    // ==================== REDIRECT TIMER ====================
+    let redirectTimer = 5; // 5 detik
+    
+    function startRedirectTimer() {
+        // Cek apakah elemen btn-container ada
+        const btnContainer = document.querySelector('.btn-container');
+        if (!btnContainer) return;
+        
+        // Cek apakah timer sudah ada
+        let timerDisplay = document.getElementById('redirectTimer');
+        if (!timerDisplay) {
+            timerDisplay = document.createElement('div');
+            timerDisplay.style.marginTop = '20px';
+            timerDisplay.style.fontSize = '14px';
+            timerDisplay.style.color = '#666';
+            timerDisplay.id = 'redirectTimer';
+            btnContainer.appendChild(timerDisplay);
+        }
+        
+        const interval = setInterval(() => {
+            redirectTimer--;
+            if (redirectTimer > 0) {
+                timerDisplay.textContent = `Redirect dalam ${redirectTimer} detik...`;
+            } else {
+                clearInterval(interval);
+                // Redirect berbeda untuk host dan non-host
+                if (isHost) {
+                    window.location.href = "{{ url_for('index') }}";
+                } else {
+                    window.location.href = "{{ url_for('join') }}";
+                }
+            }
+        }, 1000);
+    }
+
+    // ==================== INITIALIZATION ====================
+    
+    // Tampilkan pesan sesuai kondisi
+    if (impostorWins) {
+        showToast("🏆 IMPOSTOR menang! Game selesai.", 'success');
+    }
+
+    // Start timer setelah halaman load
+    window.onload = function() {
+        // Beri sedikit delay untuk memastikan DOM ready
+        setTimeout(() => {
+            startRedirectTimer();
+        }, 500);
+        
+        // Override tombol sesuai role
+        document.querySelectorAll('.btn-container a').forEach(link => {
+            const href = link.getAttribute('href');
+            if (isHost && href === "{{ url_for('join') }}") {
+                link.style.display = 'none'; // Sembunyikan join untuk host
+            }
+            if (!isHost && href === "{{ url_for('index') }}") {
+                link.style.display = 'none'; // Sembunyikan index untuk non-host
+            }
+        });
+    };
+
+    // Fallback jika window.onload sudah terlanjur jalan
+    if (document.readyState === 'complete') {
+        setTimeout(() => {
+            startRedirectTimer();
+        }, 500);
+        
+        document.querySelectorAll('.btn-container a').forEach(link => {
+            const href = link.getAttribute('href');
+            if (isHost && href === "{{ url_for('join') }}") {
+                link.style.display = 'none';
+            }
+            if (!isHost && href === "{{ url_for('index') }}") {
+                link.style.display = 'none';
+            }
         });
     }
 </script>
